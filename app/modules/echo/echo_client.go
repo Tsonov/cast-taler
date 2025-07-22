@@ -9,7 +9,6 @@ import (
 	"log/slog"
 	mathrand "math/rand"
 	"net/http"
-	"os"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -30,12 +29,14 @@ const (
 type EchoClient struct {
 	log              *slog.Logger
 	availabilityZone string
+	podName          string
 }
 
-func NewEchoClient(log *slog.Logger, availabilityZone string) *EchoClient {
+func NewEchoClient(log *slog.Logger, availabilityZone, podName string) *EchoClient {
 	return &EchoClient{
 		log:              log,
 		availabilityZone: availabilityZone,
+		podName:          podName,
 	}
 }
 
@@ -57,17 +58,9 @@ func (e *EchoClient) Run(ctx context.Context) error {
 
 		}
 
-		// Pod name is set as hostname. Since we control the deployment we can be
-		// sure it's not set to something else
-		podName, err := os.Hostname()
-		if err != nil {
-			e.log.Error("Failed to get hostname", Err(err))
-			return fmt.Errorf("get hostname: %w", err)
-		}
-
 		r.Header.Add("Content-Type", "text/plain")
 		r.Header.Add(AvailabilityZoneHeader, e.availabilityZone)
-		r.Header.Add(PodNameHeader, podName)
+		r.Header.Add(PodNameHeader, e.podName)
 
 		client := &http.Client{}
 		resp, err := client.Do(r)
