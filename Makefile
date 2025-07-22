@@ -28,4 +28,5 @@ connect-observability:
 
 .PHONE: destroy
 destroy:
-	kubectl delete namespace taler
+	kubectl delete --ignore-not-found namespace taler
+	kubectl delete --ignore-not-found -f ./hack/app/traffic-app.yaml
