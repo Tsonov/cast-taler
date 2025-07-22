@@ -4,6 +4,28 @@ metadata:
   name: test-app-sa
   namespace: taler
 ---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: cast-taler-get-nodes
+rules:
+  - apiGroups: [""]
+    resources: ["nodes"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: cast-taler-get-nodes
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: ClusterRole
+  name: cast-taler-get-nodes
+subjects:
+  - kind: ServiceAccount
+    name: cast-taler
+    namespace: default
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
