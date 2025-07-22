@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
@@ -17,6 +18,7 @@ import (
 
 	"github.com/Tsonov/cast-taler/app/modules/echo"
 	"github.com/Tsonov/cast-taler/app/pkg/k8s"
+	"github.com/Tsonov/cast-taler/app/pkg/metrics"
 )
 
 var (
@@ -104,6 +106,20 @@ func main() {
 			runGroup.Go(func() error { return echo.NewEchoServer(logger, &ready).Run() })
 		}
 	}
+
+	runGroup.Go(func() error {
+		logger.Info("Starting metrics server")
+		addr := fmt.Sprintf(":%d", 9090)
+
+		metrics.RegisterCustomMetrics()
+		metricsMux := metrics.NewMetricsMux()
+
+		if err := http.ListenAndServe(addr, metricsMux); err != nil {
+			return fmt.Errorf("failed to start metrics http server: %w", err)
+		}
+
+		return nil
+	})
 
 	outcome := make(chan error)
 

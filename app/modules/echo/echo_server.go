@@ -49,68 +49,27 @@ func (e *EchoServer) Run() error {
 			return fmt.Errorf("accepting connection: %w", err)
 		}
 
-		err = e.handleConnection(conn)
-
-		if *allowReconnect {
-			if !e.reconnected {
-				e.reconnected = true
-				e.log.Info("Running reconnect")
-				continue
+		logger := e.log.With(slog.String("client-addr", conn.RemoteAddr().String()))
+		go func() {
+			err = e.handleConnection(logger, conn)
+			if err != nil {
+				e.log.Error("Error handling connection", Err(err))
 			}
-		}
-
-		if err != nil {
-			e.log.Error("Error handling connection", Err(err))
-		}
-
-		if *allowReconnect {
-			if e.reconnected {
-				e.log.Info("Reconnect successful")
-			} else {
-				e.log.Error("Didn't handle reconnected connection")
-				return fmt.Errorf("didn't handle reconnected connection")
-			}
-		}
-
-		return nil
+		}()
 	}
 }
 
-func (e *EchoServer) handleConnection(conn net.Conn) error {
+func (e *EchoServer) handleConnection(logger *slog.Logger, conn net.Conn) error {
 	defer conn.Close()
 
-	buffer := make([]byte, bufSize)
-
-	iteration := 0
-	for {
-		n, err := conn.Read(buffer)
-		if n == 0 && err != nil {
-			if err != io.EOF {
-				e.log.Error("Error reading from connection", Err(err))
-				return fmt.Errorf("reading from connection: %w", err)
-			}
-
-			e.log.Info("Read data from client", slog.Int("bytes", n), slog.Int("iteration", iteration))
-
-			e.log.Info("EOF")
-			break
-		}
-
-		if iteration%100 == 0 {
-			e.log.Info("Read data from client", slog.Int("bytes", n), slog.Int("iteration", iteration))
-		}
-
-		nSend, err := conn.Write(buffer[:n])
-		if err != nil {
-			e.log.Error("Error writing to connection", Err(err))
-			return fmt.Errorf("writing to connection: %w", err)
-		}
-
-		if iteration%100 == 0 {
-			e.log.Info("Send data to client", slog.Int("bytes", nSend), slog.Int("iteration", iteration))
-		}
-		iteration++
+	e.log.Info("Start echo data")
+	n, err := io.Copy(conn, conn)
+	if err != nil {
+		logger.Error("Error reading from connection", Err(err))
+		return fmt.Errorf("reading from connection: %w", err)
 	}
+
+	logger.Info("Done echoing data", slog.Int64("bytes", n))
 
 	return nil
 }
