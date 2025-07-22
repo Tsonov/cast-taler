@@ -94,11 +94,6 @@ func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.
 		logger = e.log.With(slog.String("client-pod-name", clientPodName))
 	}
 
-	written, err := io.Copy(writer, request.Body)
-	if err != nil {
-		logger.Error("Error reading from connection", Err(err))
-	}
-
 	returnCode, err := e.zoneConfig.GetRandomCode(e.availabilityZone)
 	if err != nil {
 		logger.Error("Error getting random code", Err(err))
@@ -106,6 +101,11 @@ func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.
 	}
 	writer.WriteHeader(returnCode)
 	fmt.Fprintf(writer, "Status code: %d\n", returnCode)
+
+	written, err := io.Copy(writer, request.Body)
+	if err != nil {
+		logger.Error("Error reading from connection", Err(err))
+	}
 
 	success := true
 	if returnCode != 200 {
@@ -121,5 +121,5 @@ func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.
 		e.podName, e.availabilityZone,
 		clientZone, clientPodName,
 	)
-	logger.Info("Done echoing data", slog.Int64("bytes", written))
+	logger.Info("Done echoing data", slog.Int64("bytes", written), slog.Int("status_code", returnCode))
 }

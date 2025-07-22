@@ -54,6 +54,7 @@ spec:
             - --node-name=$(NODE_NAME)
             - --zone-config-path
             - /etc/zone-config/zones.yaml
+            - --client-request-number-per-second=1
           env:
             - name: NODE_NAME
               valueFrom:
@@ -185,16 +186,16 @@ metadata:
 data:
   zones.yaml: |
     europe-central2-a:
-      200: 80
-      404: 10
-      500: 10
+      200: 10
+      404: 90
+      500: 0
     europe-central2-b:
-      200: 60
-      404: 30
-      500: 10
+      200: 10
+      404: 90
+      500: 0
     europe-central2-c:
-      200: 90
-      404: 5
-      500: 5
+      200: 10
+      404: 90
+      500: 0
 ---
 
