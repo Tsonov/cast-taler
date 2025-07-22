@@ -1,14 +1,10 @@
-FROM --platform=${BUILDPLATFORM:-linux/amd64} ghcr.io/castai/live/golang:1.24.4-alpine AS builder
-ARG TARGETPLATFORM
-ARG BUILDPLATFORM
-ARG TARGETOS
-ARG TARGETARCH
+FROM --platform=linux/amd64 ghcr.io/castai/live/golang:1.24.4-alpine AS builder
 
 WORKDIR /src
 
 ENV CGO_ENABLED=0
-ENV GOOS=${TARGETOS}
-ENV GOARCH=${TARGETARCH}
+ENV GOOS=linux
+ENV GOARCH=amd64
 
 ENV GOCACHE=/go-cache
 ENV GOMODCACHE=/gomod-cache
