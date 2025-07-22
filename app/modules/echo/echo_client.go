@@ -41,8 +41,13 @@ func NewEchoClient(log *slog.Logger, availabilityZone, podName string) *EchoClie
 }
 
 func (e *EchoClient) Run(ctx context.Context) error {
-
 	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
+		}
+
 		e.log.Info("Connecting to server.")
 		bufSize := mathrand.Intn(*maxDataSizeMB) + *minDataSizeMB
 		buff := make([]byte, bufSize*MB)
