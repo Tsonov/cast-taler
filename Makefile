@@ -12,8 +12,13 @@ create-namespace:
 	kubectl create namespace taler --dry-run=client -o yaml | kubectl apply -f -
 
 .PHONY: deploy
-deploy-app: create-namespace
-	kubectl apply -f ./hack/app/traffic-app.yaml
+deploy-app: create-namespace build-push
+	@echo "→ Deploying with TAG=$(TAG)"
+	@export ECHO_TAG=$(TAG) && \
+	kubectl kustomize ./hack/app/ \
+	  | envsubst '$$ECHO_TAG' \
+	  | kubectl apply -f -
+
 
 .PHONY: deploy-observability
 deploy-observability: create-namespace
