@@ -32,7 +32,7 @@ metadata:
   name: echo-client
   namespace: taler
 spec:
-  replicas: 1
+  replicas: 3
   selector:
     matchLabels:
       app: echo-client
@@ -40,6 +40,8 @@ spec:
     metadata:
       labels:
         app: echo-client
+      annotations:
+        linkerd.io/inject: enabled
     spec:
       serviceAccountName: test-app
       containers:
@@ -61,6 +63,18 @@ spec:
             - name: zone-config
               mountPath: /etc/zone-config/zones.yaml
               subPath: zones.yaml
+          resources:
+            requests:
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: echo-client
       volumes:
         - name: zone-config
           configMap:
@@ -74,6 +88,7 @@ metadata:
   name: echo-server
   namespace: taler
 spec:
+  replicas: 3
   selector:
     matchLabels:
       app: echo-server
@@ -81,6 +96,8 @@ spec:
     metadata:
       labels:
         app: echo-server
+      annotations:
+        linkerd.io/inject: enabled
     spec:
       serviceAccountName: test-app
       containers:
@@ -121,6 +138,18 @@ spec:
             - name: zone-config
               mountPath: /etc/zone-config/zones.yaml
               subPath: zones.yaml
+          resources:
+            requests:
+              memory: 256Mi
+            limits:
+              memory: 512Mi
+      topologySpreadConstraints:
+        - maxSkew: 1
+          topologyKey: topology.kubernetes.io/zone
+          whenUnsatisfiable: DoNotSchedule
+          labelSelector:
+            matchLabels:
+              app: echo-server
       volumes:
         - name: zone-config
           configMap:
