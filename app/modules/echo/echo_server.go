@@ -84,13 +84,13 @@ func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.
 	logger := e.log.With(slog.String("client-addr", request.RemoteAddr))
 	zoneHeader := request.Header[AvailabilityZoneHeader]
 	clientZone := ""
-	if len(clientZone) > 0 {
+	if len(zoneHeader) > 0 {
 		clientZone = zoneHeader[0]
 		logger = e.log.With(slog.String("client-az", clientZone))
 	}
 	podNameHeader := request.Header[PodNameHeader]
 	clientPodName := ""
-	if len(clientPodName) > 0 {
+	if len(podNameHeader) > 0 {
 		clientPodName = podNameHeader[0]
 		logger = e.log.With(slog.String("client-pod-name", clientPodName))
 	}
