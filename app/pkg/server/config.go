@@ -52,10 +52,10 @@ func (z ZoneConfig) GetRandomCode(zoneName string) (int, error) {
 	}
 	randNum := rand.Intn(total)
 	if randNum < zone.R200 {
-		return 200, fmt.Errorf("200 OK response for zone %s", zoneName)
+		return 200, nil
 	} else if randNum < zone.R200+zone.R404 {
-		return 404, fmt.Errorf("404 Not Found response for zone %s", zoneName)
+		return 404, nil
 	} else {
-		return 500, fmt.Errorf("500 Internal Server Error response for zone %s", zoneName)
+		return 500, nil
 	}
 }
