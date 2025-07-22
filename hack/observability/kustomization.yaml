@@ -9,3 +9,4 @@ configMapGenerator:
       - grafana.ini=./grafana/grafana.ini
       - dashboards.yaml=./grafana/dashboards-config.yaml
       - datasource.yaml=./grafana/prometheus-datasource.yaml
+      - network.json=./grafana/dashboards/network.json
