@@ -24,12 +24,13 @@ import (
 )
 
 var (
-	modules        = pflag.StringSlice("module", nil, "modules to run")
-	silent         = pflag.Bool("silent", false, "silence the logger")
-	failOnSignal   = pflag.Bool("fail-on-signal", true, "fail on SIGTERM/SIGINT signal")
-	readinessPort  = pflag.String("readiness-port", "8081", "port for kubernetes readiness check")
-	nodeName       = pflag.String("node-name", "", "name of the node, used for readiness check")
-	zoneConfigPath = pflag.String("zone-config-path", "", "path to the zone config file")
+	modules                      = pflag.StringSlice("module", nil, "modules to run")
+	silent                       = pflag.Bool("silent", false, "silence the logger")
+	failOnSignal                 = pflag.Bool("fail-on-signal", true, "fail on SIGTERM/SIGINT signal")
+	readinessPort                = pflag.String("readiness-port", "8081", "port for kubernetes readiness check")
+	nodeName                     = pflag.String("node-name", "", "name of the node, used for readiness check")
+	zoneConfigPath               = pflag.String("zone-config-path", "", "path to the zone config file")
+	clientRequestNumberPerSecond = pflag.Int("client-request-number-per-second", 10, "number of requests per second for echo client")
 )
 
 // startReadinessServer starts an HTTP server for Kubernetes readiness checks
@@ -117,7 +118,9 @@ func main() {
 		logger := slog.Default().With("module", module)
 		switch module {
 		case "echo-client":
-			runGroup.Go(func() error { return echo.NewEchoClient(logger, availabilityZone, podName).Run(groupCtx) })
+			runGroup.Go(func() error {
+				return echo.NewEchoClient(logger, availabilityZone, podName).Run(groupCtx, *clientRequestNumberPerSecond)
+			})
 		case "echo-server":
 			var ready atomic.Bool
 			go func() {

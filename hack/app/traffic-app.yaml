@@ -54,6 +54,7 @@ spec:
             - --node-name=$(NODE_NAME)
             - --zone-config-path
             - /etc/zone-config/zones.yaml
+            - --client-request-number-per-second=1
           env:
             - name: NODE_NAME
               valueFrom:

@@ -40,7 +40,7 @@ func NewEchoClient(log *slog.Logger, availabilityZone, podName string) *EchoClie
 	}
 }
 
-func (e *EchoClient) Run(ctx context.Context) error {
+func (e *EchoClient) Run(ctx context.Context, requestNumberPerSecond int) error {
 	for {
 		select {
 		case <-ctx.Done():
@@ -82,7 +82,9 @@ func (e *EchoClient) Run(ctx context.Context) error {
 			return fmt.Errorf("reading response: %w", err)
 		}
 
-		e.log.Info("Received data", slog.Int("bytes", len(data)))
+		e.log.Info("Received data", slog.Int("bytes", len(data)), slog.Int("status_code", resp.StatusCode))
+
+		time.Sleep(time.Second / time.Duration(requestNumberPerSecond))
 	}
 
 }
