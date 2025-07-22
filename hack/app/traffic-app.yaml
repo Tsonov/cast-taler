@@ -60,7 +60,6 @@ spec:
             - echo-server
             - --module
             - memory
-            - "--echo-allow-reconnect"
             - --node-name=$(NODE_NAME)
           image: ghcr.io/tsonov/cast-taler/echo:latest
           imagePullPolicy: Always
