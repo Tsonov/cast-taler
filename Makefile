@@ -36,3 +36,19 @@ connect-observability:
 destroy:
 	kubectl delete --ignore-not-found namespace taler
 	kubectl delete --ignore-not-found -f ./hack/app/traffic-app.yaml
+
+.PHONY: linkerd-install
+linkerd-install:
+	./hack/linkerd/install.sh
+
+.PHONY: linkerd-uninstall
+linkerd-uninstall:
+	./hack/linkerd/uninstall.sh
+
+.PHONY: hazl-enable:
+hazl-enable:
+	./hack/linkerd/hazl-enable.sh
+
+.PHONY: hazl-disable:
+hazl-disable:
+	./hack/linkerd/hazl-disable.sh
