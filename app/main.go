@@ -103,12 +103,20 @@ func main() {
 		return
 	}
 
+	// Pod name is set as hostname. Since we control the deployment we can be
+	// sure it's not set to something else
+	podName, err := os.Hostname()
+	if err != nil {
+		logger.Error("Failed to get hostname", slog.Any("error", err))
+		os.Exit(1)
+	}
+
 	runGroup := errgroup.Group{}
 	for _, module := range *modules {
 		logger := slog.Default().With("module", module)
 		switch module {
 		case "echo-client":
-			runGroup.Go(func() error { return echo.NewEchoClient(logger, availabilityZone).Run(signalCtx) })
+			runGroup.Go(func() error { return echo.NewEchoClient(logger, availabilityZone, podName).Run(signalCtx) })
 		case "echo-server":
 			var ready atomic.Bool
 			go func() {
@@ -116,7 +124,7 @@ func main() {
 					panic(err)
 				}
 			}()
-			runGroup.Go(func() error { return echo.NewEchoServer(logger, availabilityZone, zoneConfig, &ready).Run() })
+			runGroup.Go(func() error { return echo.NewEchoServer(logger, availabilityZone, podName, zoneConfig, &ready).Run() })
 		}
 	}
 

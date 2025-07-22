@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"sync/atomic"
 
+	"github.com/Tsonov/cast-taler/app/pkg/metrics"
 	"github.com/Tsonov/cast-taler/app/pkg/server"
 	"github.com/spf13/pflag"
 )
@@ -26,15 +27,17 @@ type EchoServer struct {
 	availabilityZone string
 	zoneConfig       *server.ZoneConfig
 	ready            *atomic.Bool
+	podName          string
 }
 
-func NewEchoServer(log *slog.Logger, availabilityZone string, zoneConfig *server.ZoneConfig, ready *atomic.Bool) *EchoServer {
+func NewEchoServer(log *slog.Logger, availabilityZone string, podName string, zoneConfig *server.ZoneConfig, ready *atomic.Bool) *EchoServer {
 	logger := log.With("server-az", availabilityZone)
 	return &EchoServer{
 		log:              logger,
 		availabilityZone: availabilityZone,
 		zoneConfig:       zoneConfig,
 		ready:            ready,
+		podName:          podName,
 	}
 }
 
@@ -51,22 +54,26 @@ func (e *EchoServer) Run() error {
 
 func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.Request) {
 	e.log.Info("Start echo data")
+	defer request.Body.Close()
+
 	logger := e.log.With(slog.String("client-addr", request.RemoteAddr))
-	zone := request.Header[AvailabilityZoneHeader]
-	if len(zone) > 0 {
-		logger = e.log.With(slog.String("client-az", zone[0]))
+	zoneHeader := request.Header[AvailabilityZoneHeader]
+	clientZone := ""
+	if len(clientZone) > 0 {
+		clientZone = zoneHeader[0]
+		logger = e.log.With(slog.String("client-az", clientZone))
 	}
-	podName := request.Header[PodNameHeader]
-	if len(podName) > 0 {
-		logger = e.log.With(slog.String("client-pod-name", podName[0]))
+	podNameHeader := request.Header[PodNameHeader]
+	clientPodName := ""
+	if len(clientPodName) > 0 {
+		clientPodName = podNameHeader[0]
+		logger = e.log.With(slog.String("client-pod-name", clientPodName))
 	}
 
-	n, err := io.Copy(writer, request.Body)
+	written, err := io.Copy(writer, request.Body)
 	if err != nil {
 		logger.Error("Error reading from connection", Err(err))
 	}
-
-	logger.Info("Done echoing data", slog.Int64("bytes", n))
 
 	returnCode, err := e.zoneConfig.GetRandomCode(e.availabilityZone)
 	if err != nil {
@@ -75,4 +82,20 @@ func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.
 	}
 	writer.WriteHeader(returnCode)
 	fmt.Fprintf(writer, "Status code: %d\n", returnCode)
+
+	success := true
+	if returnCode != 200 {
+		success = false
+	}
+	metrics.TrackTraffic(
+		float64(written), success, "http",
+		clientPodName, clientZone,
+		e.availabilityZone, e.podName,
+	)
+	metrics.TrackTraffic(
+		float64(written), success, "http",
+		e.podName, e.availabilityZone,
+		clientZone, clientPodName,
+	)
+	logger.Info("Done echoing data", slog.Int64("bytes", written))
 }
