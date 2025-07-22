@@ -16,6 +16,7 @@ import (
 	"golang.org/x/sync/errgroup"
 
 	"github.com/Tsonov/cast-taler/app/modules/echo"
+	"github.com/Tsonov/cast-taler/app/pkg/k8s"
 )
 
 var (
@@ -23,6 +24,7 @@ var (
 	silent        = pflag.Bool("silent", false, "silence the logger")
 	failOnSignal  = pflag.Bool("fail-on-signal", true, "fail on SIGTERM/SIGINT signal")
 	readinessPort = pflag.String("readiness-port", "8081", "port for kubernetes readiness check")
+	nodeName      = pflag.String("node-name", "", "name of the node, used for readiness check")
 )
 
 // startReadinessServer starts an HTTP server for Kubernetes readiness checks
@@ -72,6 +74,19 @@ func main() {
 
 	signalCtx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
+
+	k8sClient, err := k8s.NewClient()
+	if err != nil {
+		logger.Error("Failed to create Kubernetes client", slog.Any("error", err))
+		return
+	}
+	az, err := k8s.GetNodeZone(signalCtx, k8sClient, *nodeName)
+	if err != nil {
+		logger.Error("Failed to get node zone", slog.Any("error", err))
+		return
+	}
+
+	logger.Info("Node zone", slog.String("zone", az))
 
 	runGroup := errgroup.Group{}
 	for _, module := range *modules {
