@@ -1,9 +1,4 @@
 apiVersion: v1
-kind: Namespace
-metadata:
-  name: taler
----
-apiVersion: v1
 kind: ServiceAccount
 metadata:
   name: prometheus-sa
