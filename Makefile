@@ -1,6 +1,11 @@
 APP ?= echo
 REPOSITORY ?= ghcr.io/tsonov/cast-taler
 TAG ?= latest
+ORGANIZATION_ID ?=
+CLUSTER_ID ?=
+CASTAI_API_TOKEN ?=
+
+include Makefile.vars
 
 .PHONY: build-push
 build-push:
@@ -52,3 +57,8 @@ hazl-enable:
 .PHONY: hazl-disable
 hazl-disable:
 	./hack/linkerd/hazl-disable.sh
+
+.PHONY: hazl-disable
+hazl-disable:
+apply-pod-mutation:
+	ORGANIZATION_ID=$(ORGANIZATION_ID) CLUSTER_ID=${CLUSTER_ID} CASTAI_API_TOKEN=${CASTAI_API_TOKEN} ./hack/linkerd/pod-mutator.sh
