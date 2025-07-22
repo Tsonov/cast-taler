@@ -7,6 +7,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"strings"
 	"sync/atomic"
 	"time"
 
@@ -99,7 +100,12 @@ func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.
 		logger.Error("Error reading from connection", Err(err))
 	}
 
-	returnCode, err := e.zoneConfig.GetRandomCode(e.availabilityZone)
+	zoneSuffix := e.availabilityZone
+	if lastHyphen := strings.LastIndex(e.availabilityZone, "-"); lastHyphen >= 0 {
+		zoneSuffix = e.availabilityZone[lastHyphen+1:]
+	}
+
+	returnCode, err := e.zoneConfig.GetRandomCode(zoneSuffix)
 	if err != nil {
 		logger.Error("Error getting random code", Err(err))
 		return

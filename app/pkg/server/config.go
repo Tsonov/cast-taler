@@ -44,7 +44,7 @@ func (z ZoneConfig) CheckResponsePercentage() error {
 func (z ZoneConfig) GetRandomCode(zoneName string) (int, error) {
 	zone, ok := z[zoneName]
 	if !ok {
-		return 0, fmt.Errorf("zone %s not found", zoneName)
+		return 200, nil
 	}
 	total := zone.R200 + zone.R404 + zone.R500
 	if total == 0 {

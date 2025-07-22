@@ -184,15 +184,15 @@ metadata:
   namespace: taler
 data:
   zones.yaml: |
-    europe-central2-a:
+    a:
       200: 80
       404: 10
       500: 10
-    europe-central2-b:
+    b:
       200: 60
       404: 30
       500: 10
-    europe-central2-c:
+    c:
       200: 90
       404: 5
       500: 5
