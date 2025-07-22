@@ -185,17 +185,17 @@ metadata:
   namespace: taler
 data:
   zones.yaml: |
-    europe-central2-a:
-      200: 10
-      404: 90
-      500: 0
-    europe-central2-b:
-      200: 10
-      404: 90
-      500: 0
-    europe-central2-c:
-      200: 10
-      404: 90
-      500: 0
+    a:
+      200: 80
+      404: 10
+      500: 10
+    b:
+      200: 60
+      404: 30
+      500: 10
+    c:
+      200: 90
+      404: 5
+      500: 5
 ---
 
