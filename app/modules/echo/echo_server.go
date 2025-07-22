@@ -9,7 +9,10 @@ import (
 	"github.com/spf13/pflag"
 )
 
-const AvailabilityZoneHeader = "Availability-Zone"
+const (
+	AvailabilityZoneHeader = "Availability-Zone"
+	PodNameHeader          = "Pod-Name"
+)
 
 var (
 	listenIP  = pflag.String("echo-server-listen-ip", "0.0.0.0", "IP of echo server")
@@ -45,6 +48,10 @@ func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.
 	zone := request.Header[AvailabilityZoneHeader]
 	if len(zone) > 0 {
 		logger = e.log.With(slog.String("client-az", zone[0]))
+	}
+	podName := request.Header[PodNameHeader]
+	if len(podName) > 0 {
+		logger = e.log.With(slog.String("client-pod-name", podName[0]))
 	}
 
 	n, err := io.Copy(writer, request.Body)
