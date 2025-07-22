@@ -50,11 +50,21 @@ spec:
             - --module
             - echo-client
             - --node-name=$(NODE_NAME)
+            - --zone-config-path
+            - /etc/zone-config/zones.yaml
           env:
             - name: NODE_NAME
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+          volumeMounts:
+            - name: zone-config
+              mountPath: /etc/zone-config/zones.yaml
+              subPath: zones.yaml
+      volumes:
+        - name: zone-config
+          configMap:
+            name: zone-response-probabilities
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -72,7 +82,7 @@ spec:
       labels:
         app: echo-server
     spec:
-      serviceAccountName: test-app-sa
+      serviceAccountName: test-app
       containers:
         - args:
             - --module
