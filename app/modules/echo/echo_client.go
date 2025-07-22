@@ -22,7 +22,7 @@ var (
 )
 
 const (
-	MB               = 1024 * 1024 * 1024
+	MB               = 1024 * 1024
 	operationTimeout = 20 * time.Second
 )
 
