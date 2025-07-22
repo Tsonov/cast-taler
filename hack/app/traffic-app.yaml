@@ -27,9 +27,6 @@ spec:
           args:
             - --module
             - echo-client
-            - --echo-server-ip
-            - echo-server
-            - "--echo-allow-reconnect"
             - --node-name=$(NODE_NAME)
           env:
             - name: NODE_NAME
