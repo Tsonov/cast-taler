@@ -1,13 +1,13 @@
 apiVersion: v1
 kind: ServiceAccount
 metadata:
-  name: test-app-sa
+  name: test-app
   namespace: taler
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRole
 metadata:
-  name: cast-taler-get-nodes
+  name: test-app
 rules:
   - apiGroups: [""]
     resources: ["nodes"]
@@ -16,15 +16,15 @@ rules:
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
 metadata:
-  name: cast-taler-get-nodes
+  name: test-app
 roleRef:
   apiGroup: rbac.authorization.k8s.io
   kind: ClusterRole
-  name: cast-taler-get-nodes
+  name: test-app
 subjects:
   - kind: ServiceAccount
-    name: cast-taler
-    namespace: default
+    name: test-app
+    namespace: taler
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -41,7 +41,7 @@ spec:
       labels:
         app: echo-client
     spec:
-      serviceAccountName: test-app-sa
+      serviceAccountName: test-app
       containers:
         - name: echo-client
           image: ghcr.io/tsonov/cast-taler/echo:latest
@@ -83,6 +83,8 @@ spec:
             - --module
             - memory
             - --node-name=$(NODE_NAME)
+            - --zone-config-path
+            - /etc/zone-config/zones.yaml
           image: ghcr.io/tsonov/cast-taler/echo:latest
           imagePullPolicy: Always
           name: echo-server
@@ -108,6 +110,14 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+          volumeMounts:
+            - name: zone-config
+              mountPath: /etc/zone-config/zones.yaml
+              subPath: zones.yaml
+      volumes:
+        - name: zone-config
+          configMap:
+            name: zone-response-probabilities
 ---
 apiVersion: v1
 kind: Service
@@ -143,3 +153,25 @@ subjects:
   - kind: ServiceAccount
     name: test-app-sa
     namespace: taler
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: zone-response-probabilities
+  namespace: taler
+data:
+  zones.yaml: |
+    europe-central2-a:
+      200: 80
+      404: 10
+      500: 10
+    europe-central2-b:
+      200: 60
+      404: 30
+      500: 10
+    europe-central2-c:
+      200: 90
+      404: 5
+      500: 5
+---
+
