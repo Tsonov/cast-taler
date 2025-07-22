@@ -116,7 +116,7 @@ func main() {
 					panic(err)
 				}
 			}()
-			runGroup.Go(func() error { return echo.NewEchoServer(logger, availabilityZone, zoneConfig).Run() })
+			runGroup.Go(func() error { return echo.NewEchoServer(logger, availabilityZone, zoneConfig, &ready).Run() })
 		}
 	}
 

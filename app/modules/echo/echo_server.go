@@ -5,6 +5,7 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"sync/atomic"
 
 	"github.com/Tsonov/cast-taler/app/pkg/server"
 	"github.com/spf13/pflag"
@@ -24,19 +25,22 @@ type EchoServer struct {
 	log              *slog.Logger
 	availabilityZone string
 	zoneConfig       *server.ZoneConfig
+	ready            *atomic.Bool
 }
 
-func NewEchoServer(log *slog.Logger, availabilityZone string, zoneConfig *server.ZoneConfig) *EchoServer {
+func NewEchoServer(log *slog.Logger, availabilityZone string, zoneConfig *server.ZoneConfig, ready *atomic.Bool) *EchoServer {
 	logger := log.With("server-az", availabilityZone)
 	return &EchoServer{
 		log:              logger,
 		availabilityZone: availabilityZone,
 		zoneConfig:       zoneConfig,
+		ready:            ready,
 	}
 }
 
 func (e *EchoServer) Run() error {
 	http.HandleFunc("/echo", e.handleConnection)
+	e.ready.Store(true)
 	err := http.ListenAndServe(fmt.Sprintf("%s:%d", *listenIP, *echoPort), nil)
 	if err != nil {
 		e.log.Error("Error starting server", Err(err))
