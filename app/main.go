@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
@@ -111,12 +112,12 @@ func main() {
 		os.Exit(1)
 	}
 
-	runGroup := errgroup.Group{}
+	runGroup, groupCtx := errgroup.WithContext(signalCtx)
 	for _, module := range *modules {
 		logger := slog.Default().With("module", module)
 		switch module {
 		case "echo-client":
-			runGroup.Go(func() error { return echo.NewEchoClient(logger, availabilityZone, podName).Run(signalCtx) })
+			runGroup.Go(func() error { return echo.NewEchoClient(logger, availabilityZone, podName).Run(groupCtx) })
 		case "echo-server":
 			var ready atomic.Bool
 			go func() {
@@ -124,28 +125,21 @@ func main() {
 					panic(err)
 				}
 			}()
-			runGroup.Go(func() error { return echo.NewEchoServer(logger, availabilityZone, podName, zoneConfig, &ready).Run() })
+			runGroup.Go(func() error {
+				return echo.NewEchoServer(logger, availabilityZone, podName, zoneConfig, &ready).Run(groupCtx)
+			})
 		}
 	}
 
 	runGroup.Go(func() error {
-		logger.Info("Starting metrics server")
-		addr := fmt.Sprintf(":%d", 9090)
-
-		metrics.RegisterCustomMetrics()
-		metricsMux := metrics.NewMetricsMux()
-
-		if err := http.ListenAndServe(addr, metricsMux); err != nil {
-			return fmt.Errorf("failed to start metrics http server: %w", err)
-		}
-
-		return nil
+		return startMetricsServer(groupCtx, logger.With("module", "metrics"), 9090)
 	})
 
 	outcome := make(chan error)
 
 	go func() {
 		outcome <- runGroup.Wait()
+		logger.Info("All modules finished")
 	}()
 
 	var result error
@@ -169,6 +163,42 @@ func main() {
 	if result != nil {
 		logger.Error("Module failed", log.Err(result))
 		os.Exit(99)
+	}
+}
+
+func startMetricsServer(ctx context.Context, logger *slog.Logger, port int) error {
+	logger.Info("Starting metrics server")
+	addr := fmt.Sprintf(":%d", port)
+
+	metrics.RegisterCustomMetrics()
+	metricsMux := metrics.NewMetricsMux()
+
+	server := &http.Server{
+		Addr:    addr,
+		Handler: metricsMux,
+	}
+
+	// Channel to capture server errors
+	serverError := make(chan error, 1)
+
+	go func() {
+		logger.Info("Metrics server listening", slog.String("address", addr))
+		if err := server.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			serverError <- fmt.Errorf("metrics server failed: %w", err)
+		}
+
+		serverError <- nil
+	}()
+
+	// Wait for context cancellation or server error
+	select {
+	case err := <-serverError:
+		return err
+	case <-ctx.Done():
+		logger.Info("Shutting down metrics server")
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		return server.Shutdown(shutdownCtx)
 	}
 
 }

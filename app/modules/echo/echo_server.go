@@ -1,11 +1,14 @@
 package echo
 
 import (
+	"context"
+	"errors"
 	"fmt"
 	"io"
 	"log/slog"
 	"net/http"
 	"sync/atomic"
+	"time"
 
 	"github.com/Tsonov/cast-taler/app/pkg/metrics"
 	"github.com/Tsonov/cast-taler/app/pkg/server"
@@ -41,15 +44,36 @@ func NewEchoServer(log *slog.Logger, availabilityZone string, podName string, zo
 	}
 }
 
-func (e *EchoServer) Run() error {
-	http.HandleFunc("/echo", e.handleConnection)
-	e.ready.Store(true)
-	err := http.ListenAndServe(fmt.Sprintf("%s:%d", *listenIP, *echoPort), nil)
-	if err != nil {
-		e.log.Error("Error starting server", Err(err))
-		return fmt.Errorf("starting server: %w", err)
+func (e *EchoServer) Run(ctx context.Context) error {
+	mux := http.NewServeMux()
+	mux.HandleFunc("/echo", e.handleConnection)
+
+	srv := &http.Server{
+		Addr:    fmt.Sprintf("%s:%d", *listenIP, *echoPort),
+		Handler: mux,
 	}
-	return nil
+
+	errChan := make(chan error, 1)
+	go func() {
+		e.ready.Store(true)
+		if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+			errChan <- fmt.Errorf("starting server: %w", err)
+			return
+		}
+		errChan <- nil
+	}()
+
+	select {
+	case err := <-errChan:
+		return err
+	case <-ctx.Done():
+		shutdownCtx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		if err := srv.Shutdown(shutdownCtx); err != nil {
+			return fmt.Errorf("shutting down server: %w", err)
+		}
+		return nil
+	}
 }
 
 func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.Request) {
