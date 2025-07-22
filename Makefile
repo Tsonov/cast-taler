@@ -36,7 +36,6 @@ connect-observability:
 destroy:
 	kubectl delete --ignore-not-found namespace taler
 	kubectl delete --ignore-not-found -f ./hack/app/traffic-app.yaml
-	kubectl delete namespace taler
 
 .PHONY: linkerd-install
 linkerd-install:
