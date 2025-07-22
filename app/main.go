@@ -103,8 +103,6 @@ func main() {
 		return
 	}
 
-	_ = zoneConfig
-
 	runGroup := errgroup.Group{}
 	for _, module := range *modules {
 		logger := slog.Default().With("module", module)
@@ -118,7 +116,7 @@ func main() {
 					panic(err)
 				}
 			}()
-			runGroup.Go(func() error { return echo.NewEchoServer(logger, availabilityZone).Run() })
+			runGroup.Go(func() error { return echo.NewEchoServer(logger, availabilityZone, zoneConfig).Run() })
 		}
 	}
 

@@ -6,6 +6,7 @@ import (
 	"log/slog"
 	"net/http"
 
+	"github.com/Tsonov/cast-taler/app/pkg/server"
 	"github.com/spf13/pflag"
 )
 
@@ -22,13 +23,15 @@ var (
 type EchoServer struct {
 	log              *slog.Logger
 	availabilityZone string
+	zoneConfig       *server.ZoneConfig
 }
 
-func NewEchoServer(log *slog.Logger, availabilityZone string) *EchoServer {
+func NewEchoServer(log *slog.Logger, availabilityZone string, zoneConfig *server.ZoneConfig) *EchoServer {
 	logger := log.With("server-az", availabilityZone)
 	return &EchoServer{
 		log:              logger,
 		availabilityZone: availabilityZone,
+		zoneConfig:       zoneConfig,
 	}
 }
 
@@ -60,4 +63,12 @@ func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.
 	}
 
 	logger.Info("Done echoing data", slog.Int64("bytes", n))
+
+	returnCode, err := e.zoneConfig.GetRandomCode(e.availabilityZone)
+	if err != nil {
+		logger.Error("Error getting random code", Err(err))
+		return
+	}
+	writer.WriteHeader(returnCode)
+	fmt.Fprintf(writer, "Status code: %d\n", returnCode)
 }
