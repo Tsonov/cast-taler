@@ -1,17 +1,17 @@
 package echo
 
 import (
+	"bytes"
 	"context"
 	"crypto/rand"
 	"fmt"
 	"io"
 	"log/slog"
 	mathrand "math/rand"
-	"net"
+	"net/http"
 	"time"
 
 	"github.com/spf13/pflag"
-	"golang.org/x/sync/errgroup"
 )
 
 var (
@@ -27,12 +27,14 @@ const (
 )
 
 type EchoClient struct {
-	log *slog.Logger
+	log              *slog.Logger
+	availabilityZone string
 }
 
-func NewEchoClient(log *slog.Logger) *EchoClient {
+func NewEchoClient(log *slog.Logger, availabilityZone string) *EchoClient {
 	return &EchoClient{
-		log: log,
+		log:              log,
+		availabilityZone: availabilityZone,
 	}
 }
 
@@ -40,90 +42,40 @@ func (e *EchoClient) Run(ctx context.Context) error {
 
 	for {
 		e.log.Info("Connecting to server.")
-		conn, err := net.Dial("tcp", fmt.Sprintf("%s:%d", *serverAddress, *echoPort))
+		bufSize := mathrand.Intn(*maxDataSizeMB) + *minDataSizeMB
+		buff := make([]byte, bufSize*MB)
+
+		e.log.Info("Sending data", slog.Int("buff-size", bufSize*MB))
+		rand.Read(buff)
+
+		url := fmt.Sprintf("http://%s:%d/echo", *serverAddress, *echoPort)
+		r, err := http.NewRequest("POST", url, bytes.NewBuffer(buff))
+		if err != nil {
+			e.log.Error("Failed to create POST request.", Err(err))
+			return fmt.Errorf("create POST request: %w", err)
+
+		}
+		r.Header.Add("Content-Type", "text/plain")
+		r.Header.Add(AvailabilityZoneHeader, e.availabilityZone)
+
+		client := &http.Client{}
+		resp, err := client.Do(r)
 		if err != nil {
 			e.log.Error("Error connecting to server", Err(err))
 			return fmt.Errorf("connecting to server: %w", err)
 		}
+		defer resp.Body.Close()
 
-		bufSize := mathrand.Intn(*maxDataSizeMB) + *minDataSizeMB
-
-		errGroup := errgroup.Group{}
-		errGroup.Go(func() error { return e.runSendingLoop(conn, bufSize) })
-		errGroup.Go(func() error { return e.runReceivingLoop(conn, bufSize) })
-
-		err = errGroup.Wait()
-		conn.Close()
-		e.log.Info("Connection done")
-
+		e.log.Info("Receiving data")
+		data, err := io.ReadAll(resp.Body)
 		if err != nil {
-			e.log.Error("Echo client failed", Err(err))
-			e.log.Info("Running reconnect")
-			continue
-		}
-	}
-
-}
-
-func (e *EchoClient) runSendingLoop(conn net.Conn, bufSize int) error {
-	buff := make([]byte, bufSize*MB)
-
-	e.log.Info("Sending data", slog.Int("buff-size", bufSize*MB))
-
-	rand.Read(buff)
-
-	conn.SetWriteDeadline(time.Now().Add(operationTimeout))
-
-	written, err := writeAll(conn, buff)
-	if err != nil {
-		e.log.Error("Error sending data", Err(err))
-		return fmt.Errorf("sending data: %w", err)
-	}
-
-	e.log.Info("Wrote data", slog.Int("bytes", written))
-	err = conn.(*net.TCPConn).CloseWrite()
-	if err != nil {
-		e.log.Error("Error closing write side of connection", Err(err))
-		return fmt.Errorf("closing write side of connection: %w", err)
-	}
-
-	return nil
-}
-
-func (e *EchoClient) runReceivingLoop(conn net.Conn, bufSize int) error {
-	buff := make([]byte, bufSize*MB)
-
-	conn.SetReadDeadline(time.Now().Add(operationTimeout))
-
-	data := 0
-	for {
-		n, err := conn.Read(buff)
-		if err != nil && err != io.EOF {
 			e.log.Error("Error reading response", Err(err))
 			return fmt.Errorf("reading response: %w", err)
 		}
-		if err == io.EOF {
-			e.log.Info("Done receiving data")
-			break
-		}
-		data += n
+
+		e.log.Info("Received data", slog.Int("bytes", len(data)))
 	}
 
-	e.log.Info("Received data", slog.Int("bytes", data))
-
-	return nil
-}
-
-func writeAll(w io.Writer, buf []byte) (int, error) {
-	totalWritten := 0
-	for totalWritten < len(buf) {
-		n, err := w.Write(buf[totalWritten:])
-		if err != nil {
-			return totalWritten, err
-		}
-		totalWritten += n
-	}
-	return totalWritten, nil
 }
 
 func Err(err error) slog.Attr {
