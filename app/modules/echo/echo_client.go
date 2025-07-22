@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	mathrand "math/rand"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -55,8 +56,18 @@ func (e *EchoClient) Run(ctx context.Context) error {
 			return fmt.Errorf("create POST request: %w", err)
 
 		}
+
+		// Pod name is set as hostname. Since we control the deployment we can be
+		// sure it's not set to something else
+		podName, err := os.Hostname()
+		if err != nil {
+			e.log.Error("Failed to get hostname", Err(err))
+			return fmt.Errorf("get hostname: %w", err)
+		}
+
 		r.Header.Add("Content-Type", "text/plain")
 		r.Header.Add(AvailabilityZoneHeader, e.availabilityZone)
+		r.Header.Add(PodNameHeader, podName)
 
 		client := &http.Client{}
 		resp, err := client.Do(r)
