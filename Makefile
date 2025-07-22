@@ -45,10 +45,10 @@ linkerd-install:
 linkerd-uninstall:
 	./hack/linkerd/uninstall.sh
 
-.PHONY: hazl-enable:
+.PHONY: hazl-enable
 hazl-enable:
 	./hack/linkerd/hazl-enable.sh
 
-.PHONY: hazl-disable:
+.PHONY: hazl-disable
 hazl-disable:
 	./hack/linkerd/hazl-disable.sh
