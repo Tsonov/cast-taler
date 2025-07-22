@@ -19,14 +19,16 @@ import (
 	"github.com/Tsonov/cast-taler/app/modules/echo"
 	"github.com/Tsonov/cast-taler/app/pkg/k8s"
 	"github.com/Tsonov/cast-taler/app/pkg/metrics"
+	"github.com/Tsonov/cast-taler/app/pkg/server"
 )
 
 var (
-	modules       = pflag.StringSlice("module", nil, "modules to run")
-	silent        = pflag.Bool("silent", false, "silence the logger")
-	failOnSignal  = pflag.Bool("fail-on-signal", true, "fail on SIGTERM/SIGINT signal")
-	readinessPort = pflag.String("readiness-port", "8081", "port for kubernetes readiness check")
-	nodeName      = pflag.String("node-name", "", "name of the node, used for readiness check")
+	modules        = pflag.StringSlice("module", nil, "modules to run")
+	silent         = pflag.Bool("silent", false, "silence the logger")
+	failOnSignal   = pflag.Bool("fail-on-signal", true, "fail on SIGTERM/SIGINT signal")
+	readinessPort  = pflag.String("readiness-port", "8081", "port for kubernetes readiness check")
+	nodeName       = pflag.String("node-name", "", "name of the node, used for readiness check")
+	zoneConfigPath = pflag.String("zone-config-path", "", "path to the zone config file")
 )
 
 // startReadinessServer starts an HTTP server for Kubernetes readiness checks
@@ -79,6 +81,7 @@ func main() {
 
 	availabilityZone := ""
 	//TODO: for experimenting with binary locally, remove this check later
+
 	if nodeName != nil && *nodeName != "" {
 		k8sClient, err := k8s.NewClient()
 		if err != nil {
@@ -91,6 +94,16 @@ func main() {
 			return
 		}
 	}
+
+	logger.Info("Node zone", slog.String("zone", availabilityZone))
+
+	zoneConfig, err := server.LoadZoneConfig(*zoneConfigPath)
+	if err != nil {
+		logger.Error("Failed to load zone config", slog.Any("error", err))
+		return
+	}
+
+	_ = zoneConfig
 
 	runGroup := errgroup.Group{}
 	for _, module := range *modules {
