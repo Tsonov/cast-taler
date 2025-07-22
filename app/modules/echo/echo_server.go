@@ -4,11 +4,12 @@ import (
 	"fmt"
 	"io"
 	"log/slog"
-	"net"
-	"sync/atomic"
+	"net/http"
 
 	"github.com/spf13/pflag"
 )
+
+const AvailabilityZoneHeader = "Availability-Zone"
 
 var (
 	listenIP  = pflag.String("echo-server-listen-ip", "0.0.0.0", "IP of echo server")
@@ -16,60 +17,40 @@ var (
 )
 
 type EchoServer struct {
-	log   *slog.Logger
-	ready *atomic.Bool
-
-	reconnected bool
+	log              *slog.Logger
+	availabilityZone string
 }
 
-func NewEchoServer(log *slog.Logger, ready *atomic.Bool) *EchoServer {
+func NewEchoServer(log *slog.Logger, availabilityZone string) *EchoServer {
+	logger := log.With("server-az", availabilityZone)
 	return &EchoServer{
-		log:   log,
-		ready: ready,
+		log:              logger,
+		availabilityZone: availabilityZone,
 	}
 }
 
 func (e *EchoServer) Run() error {
-	listener, err := net.Listen("tcp", fmt.Sprintf("%s:%d", *listenIP, *echoPort))
+	http.HandleFunc("/echo", e.handleConnection)
+	err := http.ListenAndServe(fmt.Sprintf("%s:%d", *listenIP, *echoPort), nil)
 	if err != nil {
-		e.log.Error("Error starting TCP server", Err(err))
-		return fmt.Errorf("starting TCP server: %w", err)
+		e.log.Error("Error starting server", Err(err))
+		return fmt.Errorf("starting server: %w", err)
 	}
-
-	defer listener.Close()
-	e.log.Info("Listening", slog.Int("port", *echoPort))
-
-	e.ready.Store(true)
-
-	for {
-		conn, err := listener.Accept()
-		e.log.Info("Accepted")
-		if err != nil {
-			e.log.Error("Error accepting connection:", Err(err))
-			return fmt.Errorf("accepting connection: %w", err)
-		}
-
-		logger := e.log.With(slog.String("client-addr", conn.RemoteAddr().String()))
-		go func() {
-			err = e.handleConnection(logger, conn)
-			if err != nil {
-				e.log.Error("Error handling connection", Err(err))
-			}
-		}()
-	}
+	return nil
 }
 
-func (e *EchoServer) handleConnection(logger *slog.Logger, conn net.Conn) error {
-	defer conn.Close()
-
+func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.Request) {
 	e.log.Info("Start echo data")
-	n, err := io.Copy(conn, conn)
+	logger := e.log.With(slog.String("client-addr", request.RemoteAddr))
+	zone := request.Header[AvailabilityZoneHeader]
+	if len(zone) > 0 {
+		logger = e.log.With(slog.String("client-az", zone[0]))
+	}
+
+	n, err := io.Copy(writer, request.Body)
 	if err != nil {
 		logger.Error("Error reading from connection", Err(err))
-		return fmt.Errorf("reading from connection: %w", err)
 	}
 
 	logger.Info("Done echoing data", slog.Int64("bytes", n))
-
-	return nil
 }

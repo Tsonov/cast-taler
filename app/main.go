@@ -77,25 +77,27 @@ func main() {
 	signalCtx, cancel := signal.NotifyContext(context.Background(), syscall.SIGINT, syscall.SIGTERM)
 	defer cancel()
 
-	k8sClient, err := k8s.NewClient()
-	if err != nil {
-		logger.Error("Failed to create Kubernetes client", slog.Any("error", err))
-		return
+	availabilityZone := ""
+	//TODO: for experimenting with binary locally, remove this check later
+	if nodeName != nil && *nodeName != "" {
+		k8sClient, err := k8s.NewClient()
+		if err != nil {
+			logger.Error("Failed to create Kubernetes client", slog.Any("error", err))
+			return
+		}
+		availabilityZone, err = k8s.GetNodeZone(signalCtx, k8sClient, *nodeName)
+		if err != nil {
+			logger.Error("Failed to get node zone", slog.Any("error", err))
+			return
+		}
 	}
-	az, err := k8s.GetNodeZone(signalCtx, k8sClient, *nodeName)
-	if err != nil {
-		logger.Error("Failed to get node zone", slog.Any("error", err))
-		return
-	}
-
-	logger.Info("Node zone", slog.String("zone", az))
 
 	runGroup := errgroup.Group{}
 	for _, module := range *modules {
 		logger := slog.Default().With("module", module)
 		switch module {
 		case "echo-client":
-			runGroup.Go(func() error { return echo.NewEchoClient(logger).Run(signalCtx) })
+			runGroup.Go(func() error { return echo.NewEchoClient(logger, availabilityZone).Run(signalCtx) })
 		case "echo-server":
 			var ready atomic.Bool
 			go func() {
@@ -103,7 +105,7 @@ func main() {
 					panic(err)
 				}
 			}()
-			runGroup.Go(func() error { return echo.NewEchoServer(logger, &ready).Run() })
+			runGroup.Go(func() error { return echo.NewEchoServer(logger, availabilityZone).Run() })
 		}
 	}
 
