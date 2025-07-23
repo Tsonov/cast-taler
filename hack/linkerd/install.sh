@@ -45,6 +45,18 @@ else
   echo "Linkerd CLI already installed, skipping..."
 fi
 
+# Detect an existing, healthy control-plane ----------------------------
+if kubectl get ns linkerd &>/dev/null; then
+  if linkerd check --wait 0 --output short &>/dev/null; then
+    echo "✅ Linkerd already installed and healthy – skipping installation."
+    exit 0
+  else
+    echo "⚠️  Linkerd present but not healthy. Investigate or run 'linkerd upgrade'."
+    exit 1
+  fi
+fi
+
+
 # Get cluster network configuration from GKE
 CLUSTER_NAME=$(kubectl config current-context | cut -d '_' -f 4)
 PROJECT_ID=$(kubectl config current-context | cut -d '_' -f 2)
@@ -58,6 +70,7 @@ VPC_CIDR=$(gcloud compute networks subnets list --filter="region:${REGION}" --pr
 # Build the clusterNetworks parameter
 CLUSTER_NETWORKS="${CLUSTER_CIDR}\\,${SERVICES_CIDR}\\,${POD_CIDR}\\,${VPC_CIDR}fd00::/8"
 echo "Using dynamically detected cluster networks: ${CLUSTER_NETWORKS}"
+
 
 linkerd version --client
 linkerd check --pre
