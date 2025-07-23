@@ -16,17 +16,19 @@ APP_NAMES=("echo-server" "echo-client")
 for app_name in "${APP_NAMES[@]}"; do
   id=$(curl --request GET \
        --url "https://${CASTAI_API_URI}/patching-engine/v1beta/organizations/${ORGANIZATION_ID}/clusters/${CLUSTER_ID}/pod-mutations" \
+       --silent \
        --header 'accept: application/json' \
        --header "authorization: Bearer ${CASTAI_API_TOKEN}" | \
        jq -r --arg name "$app_name" '.items[] | select(.name == $name) | .id')
 
   if [[ -n "$id" ]]; then
-    echo "Pod mutation for ${app_name} already exists with ID ${id}, skipping creation"
+    echo "✅ Pod mutation for ${app_name} already exists with ID ${id}, skipping creation"
     continue
   fi
 
   curl --request POST \
        --url "https://${CASTAI_API_URI}/patching-engine/v1beta/organizations/${ORGANIZATION_ID}/clusters/${CLUSTER_ID}/pod-mutations" \
+       --silent \
        --header 'accept: application/json' \
        --header "authorization: Bearer ${CASTAI_API_TOKEN}" \
        --header 'content-type: application/json' \

@@ -122,15 +122,6 @@ func (o *Optimizer) analyzeTrafficMetrics() []CrossAZTraffic {
 func (o *Optimizer) optimize(traffic []CrossAZTraffic) error {
 	fmt.Println("Optimizing...")
 
-	fmt.Println("Installing Linkerd...")
-	err := o.bash.ExecuteScriptStreaming("../hack/linkerd/install.sh", nil, map[string]string{
-		"BUOYANT_LICENSE": o.buoyantLicense,
-	})
-	if err != nil {
-		return fmt.Errorf("failed to install linkerd, script error: %w", err)
-	}
-	fmt.Println("Linkerd installed")
-
 	fmt.Println("Creating pod-mutations for TSC")
 	if err := o.bash.ExecuteScriptStreaming("../hack/topologyspread/pod-mutator.sh", nil, map[string]string{
 		"CASTAI_API_URI":   "api.cast.ai",
@@ -144,6 +135,7 @@ func (o *Optimizer) optimize(traffic []CrossAZTraffic) error {
 	fmt.Println("Pod-mutations for TSC created")
 
 	fmt.Println("Creating pod-mutations for HAZL")
+	// This goes second as it will force the pod mutations to be applied AND restart so might as well.
 	if err := o.bash.ExecuteScriptStreaming("../hack/linkerd/pod-mutator.sh", nil, map[string]string{
 		"CASTAI_API_URI":   "api.cast.ai",
 		"ORGANIZATION_ID":  "8c39f55e-4710-4cb7-b106-3f3300818c69",
@@ -155,7 +147,12 @@ func (o *Optimizer) optimize(traffic []CrossAZTraffic) error {
 	fmt.Println("Pod-mutations for HAZL created")
 
 	fmt.Println("Installing HAZL...")
-
+	if err := o.bash.ExecuteScriptStreaming("../hack/linkerd/hazl-enable.sh", nil, map[string]string{
+		"LINKERD_CMD":     "/Users/lachezar/.linkerd2/bin/linkerd",
+		"BUOYANT_LICENSE": o.buoyantLicense,
+	}); err != nil {
+		return fmt.Errorf("failed to enable hazl, script error: %w", err)
+	}
 	fmt.Println("Installed HAZL")
 
 	fmt.Println("Optimizing done")

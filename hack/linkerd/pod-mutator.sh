@@ -45,7 +45,7 @@ if [[ "$operation" == "remove" ]];then
 fi
 
 if [[ -n "$id" ]]; then
-  echo "Pod mutation already installed"
+  echo "✅ Pod mutation already installed"
   exit 0
 fi
 
