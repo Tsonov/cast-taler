@@ -34,40 +34,56 @@ func (o *Optimizer) Run() {
 	fmt.Println("Starting optimizer...")
 
 	for {
-		o.analyzeTrafficMetrics()
+		crossAZTraffic := o.analyzeTrafficMetrics()
+		if len(crossAZTraffic) > 0 {
+			fmt.Println(fmt.Sprintf("detected %d instances of cross-AZ traffic", len(crossAZTraffic)))
+			o.optimize(crossAZTraffic)
+		}
 		fmt.Println("Optimizer cycle done, sleeping for", o.pollInterval)
 		time.Sleep(o.pollInterval)
 	}
 }
 
+// CrossAZTraffic represents a pair of pods with cross-AZ traffic
+type CrossAZTraffic struct {
+	SourcePod string
+	TargetPod string
+}
+
 // analyzeTrafficMetrics scrapes and analyzes traffic metrics
-func (o *Optimizer) analyzeTrafficMetrics() {
+func (o *Optimizer) analyzeTrafficMetrics() []CrossAZTraffic {
+	result := make([]CrossAZTraffic, 0)
 	metrics, err := o.scraper.ScrapeMetrics()
 	if err != nil {
 		fmt.Printf("Error scraping metrics: %v\n", err)
-		return
+		return result
 	}
 
 	// Look for the traffic_total metric family
 	family, exists := metrics[TrafficTotalMetricName]
 	if !exists {
 		fmt.Printf("Metric family %s not found\n", TrafficTotalMetricName)
-		return
+		return result
 	}
 
 	fmt.Printf("Analyzing %d metrics in family %s\n", len(family.GetMetric()), TrafficTotalMetricName)
 
 	// Iterate through metrics in the family
 	for _, metric := range family.GetMetric() {
-		var sourceAZ, targetAZ string
+		var sourceAZ, targetAZ, sourcePod, targetPod string
 		var value float64
 
 		// Extract labels
 		for _, label := range metric.GetLabel() {
-			if label.GetName() == LabelSourceAz {
+			switch label.GetName() {
+			case LabelSourceAz:
 				sourceAZ = label.GetValue()
-			} else if label.GetName() == LabelTargetAz {
+			case LabelTargetAz:
 				targetAZ = label.GetValue()
+			case LabelSourcePod:
+				sourcePod = label.GetValue()
+			case LabelTargetPod:
+				targetPod = label.GetValue()
 			}
 		}
 
@@ -85,8 +101,18 @@ func (o *Optimizer) analyzeTrafficMetrics() {
 		if sourceAZ != targetAZ && value > 0 {
 			fmt.Printf("Cross-AZ traffic detected: source_az=%s, target_az=%s, value=%f\n",
 				sourceAZ, targetAZ, value)
+			result = append(result, CrossAZTraffic{
+				SourcePod: sourcePod,
+				TargetPod: targetPod,
+			})
 		} else {
 			fmt.Printf("Non-cross-AZ traffic detected: source_az=%s, target_az=%s, value=%f\n", sourceAZ, targetAZ, value)
 		}
 	}
+
+	return result
+}
+
+func (o *Optimizer) optimize(traffic []CrossAZTraffic) {
+	fmt.Println("Optimizing...")
 }
