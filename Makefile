@@ -23,7 +23,12 @@ build-push-optimizer:
 deploy-optimizer: create-namespace build-push-optimizer
 	@echo "→ Deploying optimizer with REPOSITORY=$(REPOSITORY)"
 	@export OPTIMIZER_IMAGE=$(REPOSITORY):optimizer && \
-	cat ./hack/optimizer/deployment.yaml | envsubst '$$OPTIMIZER_IMAGE' | kubectl apply -f -
+	export BUOYANT_LICENSE=$(BUOYANT_LICENSE) && \
+	export CASTAI_API_URI=$(CASTAI_API_URI) && \
+	export ORGANIZATION_ID=$(ORGANIZATION_ID) && \
+	export CLUSTER_ID=$(CLUSTER_ID) && \
+	export CASTAI_API_TOKEN=$(CASTAI_API_TOKEN) && \
+	cat ./hack/optimizer/deployment.yaml | envsubst '$$OPTIMIZER_IMAGE $$BUOYANT_LICENSE $$CASTAI_API_URI $$ORGANIZATION_ID $$CLUSTER_ID $$CASTAI_API_TOKEN' | kubectl apply -f -
 
 .PHONY: create-namespace
 create-namespace:

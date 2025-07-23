@@ -17,6 +17,20 @@ roleRef:
   name: cluster-admin
   apiGroup: rbac.authorization.k8s.io
 ---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: optimizer-config
+  namespace: taler
+data:
+  prometheus-url: "http://localhost:9090"
+  prometheus-is-api: "true"
+  buoyant-license: "${BUOYANT_LICENSE}"
+  castai-api-uri: "${CASTAI_API_URI}"
+  castai-org-id: "${ORGANIZATION_ID}"
+  castai-cluster-id: "${CLUSTER_ID}"
+  castai-api-token: "${CASTAI_API_TOKEN}"
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -39,6 +53,50 @@ spec:
       - name: optimizer
         image: ${OPTIMIZER_IMAGE}  # This is a placeholder that will be replaced by the Makefile
         imagePullPolicy: Always
+        args:
+        - "--prometheus-url=$(PROMETHEUS_URL)"
+        - "--prometheus-is-api=$(PROMETHEUS_IS_API)"
+        - "--buoyant-license=$(BUOYANT_LICENSE)"
+        - "--castai-api-uri=$(CASTAI_API_URI)"
+        - "--castai-org-id=$(ORGANIZATION_ID)"
+        - "--castai-cluster-id=$(CLUSTER_ID)"
+        - "--castai-api-token=$(CASTAI_API_TOKEN)"
+        env:
+        - name: PROMETHEUS_URL
+          valueFrom:
+            configMapKeyRef:
+              name: optimizer-config
+              key: prometheus-url
+        - name: PROMETHEUS_IS_API
+          valueFrom:
+            configMapKeyRef:
+              name: optimizer-config
+              key: prometheus-is-api
+        - name: BUOYANT_LICENSE
+          valueFrom:
+            configMapKeyRef:
+              name: optimizer-config
+              key: buoyant-license
+        - name: CASTAI_API_URI
+          valueFrom:
+            configMapKeyRef:
+              name: optimizer-config
+              key: castai-api-uri
+        - name: ORGANIZATION_ID
+          valueFrom:
+            configMapKeyRef:
+              name: optimizer-config
+              key: castai-org-id
+        - name: CLUSTER_ID
+          valueFrom:
+            configMapKeyRef:
+              name: optimizer-config
+              key: castai-cluster-id
+        - name: CASTAI_API_TOKEN
+          valueFrom:
+            configMapKeyRef:
+              name: optimizer-config
+              key: castai-api-token
         resources:
           limits:
             cpu: "200m"
