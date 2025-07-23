@@ -11,31 +11,45 @@ for var in "${REQUIRED_VARS[@]}"; do
 done
 
 restart-all() {
+  # The changes to pod mutation needs to be applied by the pod-mutator pod.
+  # There seems to be a CRD for it but nothing is created, so this is the best
+  # we can do. The loop in pod-mutator to update mutations is 30s
+  echo "Waiting 30s for pod mutation to be applied..."
+  sleep 30
   kubectl rollout restart deployment -n taler
   kubectl rollout restart statefulset -n taler
 }
 
-trap restart-all EXIT
+operation="${1:-}"
 
 id=$(curl --request GET \
      --url "https://${CASTAI_API_URI}/patching-engine/v1beta/organizations/${ORGANIZATION_ID}/clusters/${CLUSTER_ID}/pod-mutations" \
      --header 'accept: application/json' \
-     --header "authorization: Bearer ${CASTAI_API_TOKEN}" | \
+     --header "authorization: Bearer ${CASTAI_API_TOKEN}" --silent | \
      jq -r '.items[] | select(.name == "taler-hazl-mutation") | .id')
 
-if [[ -n "$id" ]];then
+if [[ "$operation" == "remove" ]];then
+  if  [[ -z "$id" ]]; then
+    echo "Pod mutation already removed"
+    exit 0
+  fi
+
   curl --request DELETE \
      --url "https://${CASTAI_API_URI}/patching-engine/v1beta/organizations/${ORGANIZATION_ID}/clusters/${CLUSTER_ID}/pod-mutations/${id}" \
      --header 'accept: application/json' \
-     --header "authorization: Bearer ${CASTAI_API_TOKEN}"
+     --header "authorization: Bearer ${CASTAI_API_TOKEN}" \
+     --silent
+
+  restart-all
+  exit $?
 fi
 
-op="${1:-}"
-if [[ -n "$op" ]] && [[ "$op" == "remove" ]]; then
+if [[ -n "$id" ]]; then
+  echo "Pod mutation already installed"
   exit 0
 fi
 
-curl --request POST \
+curl --request POST --silent \
      --url "https://${CASTAI_API_URI}/patching-engine/v1beta/organizations/${ORGANIZATION_ID}/clusters/${CLUSTER_ID}/pod-mutations" \
      --header 'accept: application/json' \
      --header "authorization: Bearer ${CASTAI_API_TOKEN}" \
@@ -45,9 +59,6 @@ curl --request POST \
   "objectFilter": {
     "namespaces": [
       "taler"
-    ],
-    "kinds": [
-      "Pod"
     ]
   },
   "annotations": {
@@ -57,3 +68,5 @@ curl --request POST \
   "enabled": true
 }
 '
+
+restart-all

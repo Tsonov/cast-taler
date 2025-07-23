@@ -45,7 +45,7 @@ destroy:
 
 .PHONY: linkerd-install
 linkerd-install:
-	./hack/linkerd/install.sh
+	BUOYANT_LICENSE=${BUOYANT_LICENSE} ./hack/linkerd/install.sh
 
 .PHONY: linkerd-uninstall
 linkerd-uninstall:
