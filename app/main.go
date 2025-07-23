@@ -9,7 +9,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"sync/atomic"
 	"syscall"
 	"time"
@@ -114,18 +113,13 @@ func main() {
 		os.Exit(1)
 	}
 
-	zoneSuffix := availabilityZone
-	if lastHyphen := strings.LastIndex(availabilityZone, "-"); lastHyphen >= 0 {
-		zoneSuffix = availabilityZone[lastHyphen+1:]
-	}
-
 	runGroup, groupCtx := errgroup.WithContext(signalCtx)
 	for _, module := range *modules {
 		logger := slog.Default().With("module", module)
 		switch module {
 		case "echo-client":
 			runGroup.Go(func() error {
-				return echo.NewEchoClient(logger, availabilityZone, podName).Run(groupCtx, zoneConfig.GetRequestsPerSeconds(zoneSuffix), zoneConfig.GetParallelRequests(zoneSuffix))
+				return echo.NewEchoClient(logger, availabilityZone, podName).Run(groupCtx, *clientRequestNumberPerSecond)
 			})
 		case "echo-server":
 			var ready atomic.Bool

@@ -15,7 +15,7 @@ import (
 )
 
 var (
-	serverAddress = pflag.String("echo-server-address", "echo-server.taler.svc.cluster.local", "Address of echo server")
+	serverAddress = pflag.String("echo-server-address", "echo-server", "Address of echo server")
 	echoPort      = pflag.Int("echo-port", 8080, "Port of echo server")
 	maxDataSizeMB = pflag.Int("max-data-size-mb", 5, "Maximum data transfered per connection in MB")
 	minDataSizeMB = pflag.Int("min-data-size-mb", 1, "Minimum data transfered per connection in MB")
@@ -30,8 +30,6 @@ type EchoClient struct {
 	log              *slog.Logger
 	availabilityZone string
 	podName          string
-	parallelRequests int
-	requestPerSecond int
 }
 
 func NewEchoClient(log *slog.Logger, availabilityZone, podName string) *EchoClient {
@@ -42,67 +40,52 @@ func NewEchoClient(log *slog.Logger, availabilityZone, podName string) *EchoClie
 	}
 }
 
-func (e *EchoClient) Run(ctx context.Context, requestNumberPerSecond int, parallelRequests int) error {
-	e.log.Info("Starting client workers", slog.Int("parallel_requests", parallelRequests), slog.Int("request_per_second", requestNumberPerSecond))
-	worker := func() {
-		client := &http.Client{}
-		for {
-			select {
-			case <-ctx.Done():
-				return
-			default:
-			}
-
-			e.log.Info("Connecting to server.")
-			bufSize := mathrand.Intn(*maxDataSizeMB-*minDataSizeMB) + *minDataSizeMB
-			buff := make([]byte, bufSize*MB)
-
-			e.log.Info("Sending data", slog.Int("buff-size", bufSize*MB))
-			rand.Read(buff)
-
-			url := fmt.Sprintf("http://%s:%d/echo", *serverAddress, *echoPort)
-			r, err := http.NewRequest("POST", url, bytes.NewBuffer(buff))
-			if err != nil {
-				e.log.Error("Failed to create POST request.", Err(err))
-				continue
-			}
-
-			r.Header.Add("Content-Type", "text/plain")
-			r.Header.Add(AvailabilityZoneHeader, e.availabilityZone)
-			r.Header.Add(PodNameHeader, e.podName)
-
-			resp, err := client.Do(r)
-			if err != nil {
-				e.log.Error("Error connecting to server", Err(err))
-				continue
-			}
-			defer resp.Body.Close()
-			data, err := io.ReadAll(resp.Body)
-			if err != nil {
-				e.log.Error("Error reading response", Err(err))
-				return
-			}
-
-			azLine := ""
-			lines := bytes.SplitN(data, []byte{'\n'}, 2)
-			if len(lines) > 0 {
-				azLine = string(lines[0])
-			}
-			e.log.Info("Received data", slog.Int("bytes", len(data)), slog.Int("status_code", resp.StatusCode), slog.String("az", azLine))
-
-			if resp.StatusCode == 200 {
-				time.Sleep(time.Second / time.Duration(requestNumberPerSecond))
-			}
+func (e *EchoClient) Run(ctx context.Context, requestNumberPerSecond int) error {
+	for {
+		select {
+		case <-ctx.Done():
+			return ctx.Err()
+		default:
 		}
-	}
 
-	// Launch workers equal to parallelRequests
-	for i := 0; i < parallelRequests; i++ {
-		go worker()
-	}
+		e.log.Info("Connecting to server.")
+		bufSize := mathrand.Intn(*maxDataSizeMB-*minDataSizeMB) + *minDataSizeMB
+		buff := make([]byte, bufSize*MB)
 
-	<-ctx.Done()
-	return ctx.Err()
+		e.log.Info("Sending data", slog.Int("buff-size", bufSize*MB))
+		rand.Read(buff)
+
+		url := fmt.Sprintf("http://%s:%d/echo", *serverAddress, *echoPort)
+		r, err := http.NewRequest("POST", url, bytes.NewBuffer(buff))
+		if err != nil {
+			e.log.Error("Failed to create POST request.", Err(err))
+			return fmt.Errorf("create POST request: %w", err)
+
+		}
+
+		r.Header.Add("Content-Type", "text/plain")
+		r.Header.Add(AvailabilityZoneHeader, e.availabilityZone)
+		r.Header.Add(PodNameHeader, e.podName)
+
+		client := &http.Client{}
+		resp, err := client.Do(r)
+		if err != nil {
+			e.log.Error("Error connecting to server", Err(err))
+			return fmt.Errorf("connecting to server: %w", err)
+		}
+		defer resp.Body.Close()
+
+		e.log.Info("Receiving data")
+		data, err := io.ReadAll(resp.Body)
+		if err != nil {
+			e.log.Error("Error reading response", Err(err))
+			return fmt.Errorf("reading response: %w", err)
+		}
+
+		e.log.Info("Received data", slog.Int("bytes", len(data)), slog.Int("status_code", resp.StatusCode))
+
+		time.Sleep(time.Second / time.Duration(requestNumberPerSecond))
+	}
 
 }
 
