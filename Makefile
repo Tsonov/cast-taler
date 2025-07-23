@@ -49,7 +49,7 @@ deploy-observability: create-namespace
       kubectl apply -f -
 
 .PHONY: deploy
-deploy: deploy-app deploy-observability
+deploy: deploy-app deploy-observability deploy-optimizer
 
 .PHONY: connect-observability
 connect-observability:
@@ -59,6 +59,8 @@ connect-observability:
 destroy:
 	kubectl delete --ignore-not-found namespace taler
 	kubectl delete --ignore-not-found -f ./hack/app/traffic-app.yaml
+	kubectl delete --ignore-not-found namespace linkerd
+	kubectl delete --ignore-not-found -f ./hack/optimizer/deployment.yaml
 
 .PHONY: linkerd-install
 linkerd-install:
