@@ -92,13 +92,14 @@ func main() {
 	// Your optimizer logic goes here
 	fmt.Println("Optimizer started")
 
-	// If Prometheus URL is provided, scrape and display metrics
+	// If Prometheus URL is provided, create and run the optimizer
 	if prometheusURL != "" {
-		fmt.Printf("Scraping Prometheus metrics from %s\n", prometheusURL)
+		fmt.Printf("Connecting to Prometheus at %s\n", prometheusURL)
 		scraper := NewPrometheusScraper(prometheusURL, prometheusTimeout)
-		if err := scraper.DisplayMetrics(); err != nil {
-			fmt.Printf("Error scraping Prometheus metrics: %v\n", err)
-			os.Exit(1)
-		}
+
+		optimizer := NewOptimizer(scraper, 10*time.Second)
+
+		// Run the optimizer (this will block indefinitely)
+		optimizer.Run()
 	}
 }
