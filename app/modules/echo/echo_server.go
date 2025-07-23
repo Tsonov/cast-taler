@@ -106,15 +106,22 @@ func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.
 		return
 	}
 	writer.WriteHeader(returnCode)
-	fmt.Fprintf(writer, "Status code: %d\n", returnCode)
+
+	_, err = fmt.Fprintf(writer, "az: %s\n", e.availabilityZone)
+	if err != nil {
+		logger.Error("Error reading from connection", Err(err))
+	}
 
 	written, err := io.Copy(writer, request.Body)
 	if err != nil {
 		logger.Error("Error reading from connection", Err(err))
 	}
+	if returnCode != 200 {
+		time.Sleep(1 * time.Second)
+	}
 
 	bytesSent := float64(written) * 1000 // increase traffic we report to show nicer numbers
-	
+
 	// egress traffic from the client to the server
 	metrics.TrackTraffic(
 		bytesSent, true, "http",
@@ -128,7 +135,7 @@ func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.
 		// do not track server egress traffic in case of zone failure simulation
 		bytesSent = 0
 	}
-	
+
 	// egress traffic from the server to the client
 	metrics.TrackTraffic(
 		bytesSent, success, "http",

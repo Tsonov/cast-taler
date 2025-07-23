@@ -40,11 +40,14 @@ spec:
     metadata:
       labels:
         app: echo-client
+      annotations:
+        linkerd.io/inject: "enabled"
+        balancer.buoyant.io/load-band: "0.1,0.2"
     spec:
       serviceAccountName: test-app
       containers:
         - name: echo-client
-          image: ghcr.io/tsonov/cast-taler/echo:latest
+          image: ghcr.io/tsonov/cast-taler/echo:latest-frac
           imagePullPolicy: Always
           args:
             - --module
@@ -52,7 +55,7 @@ spec:
             - --node-name=$(NODE_NAME)
             - --zone-config-path
             - /etc/zone-config/zones.yaml
-            - --client-request-number-per-second=1
+            - --client-request-number-per-second=100
           env:
             - name: NODE_NAME
               valueFrom:
@@ -88,6 +91,9 @@ spec:
     metadata:
       labels:
         app: echo-server
+      annotations:
+        linkerd.io/inject: "enabled"
+        balancer.buoyant.io/load-band: "0.1,0.2"
     spec:
       serviceAccountName: test-app
       containers:
@@ -99,7 +105,7 @@ spec:
             - --node-name=$(NODE_NAME)
             - --zone-config-path
             - /etc/zone-config/zones.yaml
-          image: ghcr.io/tsonov/cast-taler/echo:latest
+          image: ghcr.io/tsonov/cast-taler/echo:latest-frac
           imagePullPolicy: Always
           name: echo-server
           ports:
@@ -168,16 +174,28 @@ metadata:
 data:
   zones.yaml: |
     a:
-      200: 80
-      404: 10
-      500: 10
+      requestsPerSeconds: 10
+      parallelRequests: 1
+      200: 100
+      404: 0
+      500: 0
+      503: 0
+      504: 0
     b:
-      200: 60
-      404: 30
-      500: 10
+      requestsPerSeconds: 10
+      parallelRequests: 1
+      200: 100
+      404: 0
+      500: 0
+      503: 0
+      504: 0
     c:
-      200: 90
-      404: 5
-      500: 5
+      requestsPerSeconds: 10
+      parallelRequests: 1
+      200: 100
+      404: 0
+      500: 0
+      503: 0
+      504: 0
 ---
 
