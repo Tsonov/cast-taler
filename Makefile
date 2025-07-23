@@ -14,6 +14,22 @@ build-push:
 	docker build -t $(REPOSITORY)/$(APP):$(TAG) .
 	docker push $(REPOSITORY)/$(APP):$(TAG)
 
+.PHONY: build-push-optimizer
+build-push-optimizer:
+	docker build -t $(REPOSITORY):optimizer -f optimizer.Dockerfile .
+	docker push $(REPOSITORY):optimizer
+
+.PHONY: deploy-optimizer
+deploy-optimizer: create-namespace build-push-optimizer
+	@echo "→ Deploying optimizer with REPOSITORY=$(REPOSITORY)"
+	@export OPTIMIZER_IMAGE=$(REPOSITORY):optimizer && \
+	export BUOYANT_LICENSE=$(BUOYANT_LICENSE) && \
+	export CASTAI_API_URI=$(CASTAI_API_URI) && \
+	export ORGANIZATION_ID=$(ORGANIZATION_ID) && \
+	export CLUSTER_ID=$(CLUSTER_ID) && \
+	export CASTAI_API_TOKEN=$(CASTAI_API_TOKEN) && \
+	cat ./hack/optimizer/deployment.yaml | envsubst '$$OPTIMIZER_IMAGE $$BUOYANT_LICENSE $$CASTAI_API_URI $$ORGANIZATION_ID $$CLUSTER_ID $$CASTAI_API_TOKEN' | kubectl apply -f -
+
 .PHONY: create-namespace
 create-namespace:
 	kubectl create namespace taler --dry-run=client -o yaml | kubectl apply -f -
@@ -33,7 +49,7 @@ deploy-observability: create-namespace
       kubectl apply -f -
 
 .PHONY: deploy
-deploy: deploy-app deploy-observability
+deploy: deploy-app deploy-observability deploy-optimizer
 
 .PHONY: connect-observability
 connect-observability:
@@ -43,6 +59,8 @@ connect-observability:
 destroy:
 	kubectl delete --ignore-not-found namespace taler
 	kubectl delete --ignore-not-found -f ./hack/app/traffic-app.yaml
+	kubectl delete --ignore-not-found namespace linkerd
+	kubectl delete --ignore-not-found -f ./hack/optimizer/deployment.yaml
 
 .PHONY: linkerd-install
 linkerd-install:

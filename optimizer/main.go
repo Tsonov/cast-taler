@@ -1,55 +1,14 @@
 package main
 
 import (
-	"context"
 	"fmt"
 	"os"
 	"path/filepath"
 	"time"
 
 	"github.com/spf13/pflag"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/client-go/kubernetes"
-	"k8s.io/client-go/rest"
-	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/util/homedir"
 )
-
-func initKubeClient(kubeconfig, kubecontext string) (*kubernetes.Clientset, error) {
-	var config *rest.Config
-	var err error
-
-	if kubeconfig != "" {
-		// Use out-of-cluster configuration with the provided kubeconfig
-		loadingRules := clientcmd.NewDefaultClientConfigLoadingRules()
-		loadingRules.ExplicitPath = kubeconfig
-
-		configOverrides := &clientcmd.ConfigOverrides{}
-		if kubecontext != "" {
-			configOverrides.CurrentContext = kubecontext
-		}
-
-		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
-		config, err = clientConfig.ClientConfig()
-		if err != nil {
-			return nil, fmt.Errorf("error creating Kubernetes client config from kubeconfig: %v", err)
-		}
-	} else {
-		// Use in-cluster configuration
-		config, err = rest.InClusterConfig()
-		if err != nil {
-			return nil, fmt.Errorf("error creating in-cluster config: %v", err)
-		}
-	}
-
-	// Create the clientset
-	clientset, err := kubernetes.NewForConfig(config)
-	if err != nil {
-		return nil, fmt.Errorf("error creating Kubernetes client: %v", err)
-	}
-
-	return clientset, nil
-}
 
 func main() {
 	// Define command-line flags
@@ -102,22 +61,6 @@ func main() {
 		fmt.Println("Error: all CASTAI configuration flags are required")
 		os.Exit(1)
 	}
-
-	// Initialize Kubernetes client
-	clientset, err := initKubeClient(kubeconfig, kubecontext)
-	if err != nil {
-		fmt.Printf("Error initializing Kubernetes client: %v\n", err)
-		os.Exit(1)
-	}
-
-	// Test the connection by listing nodes
-	nodes, err := clientset.CoreV1().Nodes().List(context.Background(), metav1.ListOptions{})
-	if err != nil {
-		fmt.Printf("Error listing nodes: %v\n", err)
-		os.Exit(1)
-	}
-
-	fmt.Printf("Successfully connected to Kubernetes API. Found %d nodes.\n", len(nodes.Items))
 
 	// Your optimizer logic goes here
 	fmt.Println("Optimizer started")
