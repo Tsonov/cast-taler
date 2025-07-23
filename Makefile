@@ -49,7 +49,11 @@ deploy-observability: create-namespace
       kubectl apply -f -
 
 .PHONY: deploy
-deploy: deploy-app deploy-observability deploy-optimizer
+deploy: deploy-app deploy-observability deploy-optimizer linkerd-install
+
+.PHONY: optimize
+optimize:
+	kubectl scale deployment optimizer -n taler --replicas=1
 
 .PHONY: connect-observability
 connect-observability:
@@ -57,10 +61,11 @@ connect-observability:
 
 .PHONY: destroy
 destroy:
-	kubectl delete --ignore-not-found namespace taler
 	kubectl delete --ignore-not-found -f ./hack/app/traffic-app.yaml
-	kubectl delete --ignore-not-found namespace linkerd
 	kubectl delete --ignore-not-found -f ./hack/optimizer/deployment.yaml
+	kubectl delete --ignore-not-found namespace taler
+	BUOYANT_LICENSE=$(BUOYANT_LICENSE) ./hack/linkerd/uninstall.sh
+	kubectl delete --ignore-not-found namespace linkerd
 
 .PHONY: linkerd-install
 linkerd-install:
