@@ -66,7 +66,10 @@ for app_name in "${APP_NAMES[@]}"; do
                        },
                        "maxSkew": 1,
                        "topologyKey": "topology.kubernetes.io/zone",
-                       "whenUnsatisfiable": "DoNotSchedule"
+                       "whenUnsatisfiable": "DoNotSchedule",
+                       "matchLabelKeys": [
+                        "pod-template-hash"
+                       ]
                    }
                }
            ]
