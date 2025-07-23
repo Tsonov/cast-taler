@@ -40,9 +40,6 @@ spec:
     metadata:
       labels:
         app: echo-client
-      annotations:
-        linkerd.io/inject: "enabled"
-        balancer.buoyant.io/load-band: "0.1,0.2"
     spec:
       serviceAccountName: test-app
       containers:
@@ -67,9 +64,9 @@ spec:
               subPath: zones.yaml
           resources:
             requests:
-              memory: 256Mi
+              memory: 1Gi
             limits:
-              memory: 512Mi
+              memory: 1Gi
       volumes:
         - name: zone-config
           configMap:
@@ -91,9 +88,6 @@ spec:
     metadata:
       labels:
         app: echo-server
-      annotations:
-        linkerd.io/inject: "enabled"
-        balancer.buoyant.io/load-band: "0.1,0.2"
     spec:
       serviceAccountName: test-app
       containers:
@@ -136,9 +130,9 @@ spec:
               subPath: zones.yaml
           resources:
             requests:
-              memory: 256Mi
+              memory: 1Gi
             limits:
-              memory: 512Mi
+              memory: 1Gi
       volumes:
         - name: zone-config
           configMap:
