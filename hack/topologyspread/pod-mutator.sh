@@ -88,8 +88,7 @@ restart-all() {
   # we can do. The loop in pod-mutator to update mutations is 30s
   echo "Waiting 30s for pod mutation to be applied..."
   sleep 30
-  kubectl rollout restart deployment -n taler
-  kubectl rollout restart statefulset -n taler
+  kubectl rollout restart deployment -n taler echo-client echo-server
 }
 
 
