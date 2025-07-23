@@ -10,6 +10,13 @@ for var in "${REQUIRED_VARS[@]}"; do
   fi
 done
 
+restart-all() {
+  kubectl rollout restart deployment -n taler
+  kubectl rollout restart statefulset -n taler
+}
+
+trap restart-all EXIT
+
 id=$(curl --request GET \
      --url "https://${CASTAI_API_URI}/patching-engine/v1beta/organizations/${ORGANIZATION_ID}/clusters/${CLUSTER_ID}/pod-mutations" \
      --header 'accept: application/json' \
@@ -21,6 +28,11 @@ if [[ -n "$id" ]];then
      --url "https://${CASTAI_API_URI}/patching-engine/v1beta/organizations/${ORGANIZATION_ID}/clusters/${CLUSTER_ID}/pod-mutations/${id}" \
      --header 'accept: application/json' \
      --header "authorization: Bearer ${CASTAI_API_TOKEN}"
+fi
+
+op="${1:-}"
+if [[ -n "$op" ]] && [[ "$op" == "remove" ]]; then
+  exit 0
 fi
 
 curl --request POST \

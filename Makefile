@@ -52,15 +52,16 @@ linkerd-uninstall:
 	./hack/linkerd/uninstall.sh
 
 .PHONY: hazl-enable
-hazl-enable:
+hazl-enable: apply-pod-mutation
 	./hack/linkerd/hazl-enable.sh
 
 .PHONY: hazl-disable
-hazl-disable:
+hazl-disable: remove-pod-mutation
 	./hack/linkerd/hazl-disable.sh
 
-.PHONY: hazl-disable
-hazl-disable:
+.PHONY: remove-pod-mutation
+remove-pod-mutation:
+	ORGANIZATION_ID=$(ORGANIZATION_ID) CLUSTER_ID=${CLUSTER_ID} CASTAI_API_TOKEN=${CASTAI_API_TOKEN} CASTAI_API_URI=${CASTAI_API_URI} ./hack/linkerd/pod-mutator.sh remove
 
 .PHONY: apply-pod-mutation
 apply-pod-mutation:
