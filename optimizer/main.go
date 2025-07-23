@@ -77,7 +77,31 @@ func main() {
 	// Buoyant license flag
 	pflag.StringVar(&buoyantLicense, "buoyant-license", "", "Buoyant license key required for Linkerd")
 
+	// Linkerd command flag
+	var linkerdCmd string
+	pflag.StringVar(&linkerdCmd, "linkerd-cmd", "~/.linkerd2/bin/linkerd", "Path to the Linkerd CLI command")
+
+	// CASTAI config flags
+	var castaiAPIURI string
+	var castaiOrgID string
+	var castaiClusterID string
+	var castaiAPIToken string
+	pflag.StringVar(&castaiAPIURI, "castai-api-uri", "", "CASTAI API URI")
+	pflag.StringVar(&castaiOrgID, "castai-org-id", "", "CASTAI Organization ID")
+	pflag.StringVar(&castaiClusterID, "castai-cluster-id", "", "CASTAI Cluster ID")
+	pflag.StringVar(&castaiAPIToken, "castai-api-token", "", "CASTAI API Token")
+
 	pflag.Parse()
+
+	// Validate required flags
+	if prometheusURL == "" {
+		fmt.Println("Error: --prometheus-url is required")
+		os.Exit(1)
+	}
+	if castaiAPIURI == "" || castaiOrgID == "" || castaiClusterID == "" || castaiAPIToken == "" {
+		fmt.Println("Error: all CASTAI configuration flags are required")
+		os.Exit(1)
+	}
 
 	// Initialize Kubernetes client
 	clientset, err := initKubeClient(kubeconfig, kubecontext)
@@ -110,7 +134,19 @@ func main() {
 		// Enable streaming output by default
 		executor.SetStreamOutput(true)
 
-		optimizer := NewOptimizer(scraper, 10*time.Second, executor, buoyantLicense)
+		config := OptimizerConfig{
+			PollInterval:   10 * time.Second,
+			BuoyantLicense: buoyantLicense,
+			CastaiConfig: CastaiConfig{
+				ApiUri:         castaiAPIURI,
+				OrganizationId: castaiOrgID,
+				ClusterId:      castaiClusterID,
+				ApiToken:       castaiAPIToken,
+			},
+			LinkerdCmd: linkerdCmd,
+		}
+
+		optimizer := NewOptimizer(scraper, executor, config)
 
 		// Run the optimizer (this will block indefinitely)
 		optimizer.Run()

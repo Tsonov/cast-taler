@@ -15,23 +15,39 @@ const (
 	LabelTargetPod         = "target_pod"
 )
 
+type OptimizerConfig struct {
+	PollInterval   time.Duration
+	BuoyantLicense string
+	CastaiConfig   CastaiConfig
+	LinkerdCmd     string
+}
+
+type CastaiConfig struct {
+	ApiUri         string
+	OrganizationId string
+	ClusterId      string
+	ApiToken       string
+}
+
 // Optimizer is responsible for analyzing Prometheus metrics and identifying cross-AZ traffic
 type Optimizer struct {
-	scraper        *PrometheusScraper
-	pollInterval   time.Duration
-	bash           *BashExecutor
-	buoyantLicense string
+	config  OptimizerConfig
+	scraper *PrometheusScraper
+	bash    *BashExecutor
 	// Store previous counter values to detect new traffic
 	previousCounters map[string]float64
 }
 
 // NewOptimizer creates a new instance of Optimizer
-func NewOptimizer(scraper *PrometheusScraper, pollInterval time.Duration, executor *BashExecutor, buoyantLicense string) *Optimizer {
+func NewOptimizer(
+	scraper *PrometheusScraper,
+	bashExecutor *BashExecutor,
+	config OptimizerConfig,
+) *Optimizer {
 	return &Optimizer{
+		config:           config,
 		scraper:          scraper,
-		pollInterval:     pollInterval,
-		bash:             executor,
-		buoyantLicense:   buoyantLicense,
+		bash:             bashExecutor,
 		previousCounters: make(map[string]float64),
 	}
 }
@@ -48,8 +64,8 @@ func (o *Optimizer) Run() {
 				fmt.Println("optimizer cycle failed, error: ", err)
 			}
 		}
-		fmt.Println("Optimizer cycle done, sleeping for", o.pollInterval)
-		time.Sleep(o.pollInterval)
+		fmt.Println("Optimizer cycle done, sleeping for", o.config.PollInterval)
+		time.Sleep(o.config.PollInterval)
 	}
 }
 
@@ -155,10 +171,10 @@ func (o *Optimizer) optimize(traffic []CrossAZTraffic) error {
 
 	fmt.Println("Creating pod-mutations for TSC")
 	if err := o.bash.ExecuteScriptStreaming("../hack/topologyspread/pod-mutator.sh", nil, map[string]string{
-		"CASTAI_API_URI":   "api.cast.ai",
-		"ORGANIZATION_ID":  "8c39f55e-4710-4cb7-b106-3f3300818c69",
-		"CLUSTER_ID":       "197bfadc-ca34-4c50-a23f-1236394c8558",
-		"CASTAI_API_TOKEN": "0b229ebf5acb6b972656628116531034021fdb3b3fea52f775786793abbfe3b0",
+		"CASTAI_API_URI":   o.config.CastaiConfig.ApiUri,
+		"ORGANIZATION_ID":  o.config.CastaiConfig.OrganizationId,
+		"CLUSTER_ID":       o.config.CastaiConfig.ClusterId,
+		"CASTAI_API_TOKEN": o.config.CastaiConfig.ApiToken,
 	}); err != nil {
 		return fmt.Errorf("failed to create TSC pod-mutations, script error: %w", err)
 	}
@@ -168,10 +184,10 @@ func (o *Optimizer) optimize(traffic []CrossAZTraffic) error {
 	fmt.Println("Creating pod-mutations for HAZL")
 	// This goes second as it will force the pod mutations to be applied AND restart so might as well.
 	if err := o.bash.ExecuteScriptStreaming("../hack/linkerd/pod-mutator.sh", nil, map[string]string{
-		"CASTAI_API_URI":   "api.cast.ai",
-		"ORGANIZATION_ID":  "8c39f55e-4710-4cb7-b106-3f3300818c69",
-		"CLUSTER_ID":       "197bfadc-ca34-4c50-a23f-1236394c8558",
-		"CASTAI_API_TOKEN": "0b229ebf5acb6b972656628116531034021fdb3b3fea52f775786793abbfe3b0",
+		"CASTAI_API_URI":   o.config.CastaiConfig.ApiUri,
+		"ORGANIZATION_ID":  o.config.CastaiConfig.OrganizationId,
+		"CLUSTER_ID":       o.config.CastaiConfig.ClusterId,
+		"CASTAI_API_TOKEN": o.config.CastaiConfig.ApiToken,
 	}); err != nil {
 		return fmt.Errorf("failed to create HAZL pod-mutations, script error: %w", err)
 	}
@@ -179,8 +195,8 @@ func (o *Optimizer) optimize(traffic []CrossAZTraffic) error {
 
 	fmt.Println("Installing HAZL...")
 	if err := o.bash.ExecuteScriptStreaming("../hack/linkerd/hazl-enable.sh", nil, map[string]string{
-		"LINKERD_CMD":     "/Users/lachezar/.linkerd2/bin/linkerd",
-		"BUOYANT_LICENSE": o.buoyantLicense,
+		"LINKERD_CMD":     o.config.LinkerdCmd,
+		"BUOYANT_LICENSE": o.config.BuoyantLicense,
 	}); err != nil {
 		return fmt.Errorf("failed to enable hazl, script error: %w", err)
 	}
