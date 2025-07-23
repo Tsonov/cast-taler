@@ -113,17 +113,25 @@ func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.
 		logger.Error("Error reading from connection", Err(err))
 	}
 
-	success := true
-	if returnCode != 200 {
-		success = false
-	}
+	bytesSent := float64(written)
+	
+	// egress traffic from the client to the server
 	metrics.TrackTraffic(
-		float64(written), success, "http",
+		bytesSent, true, "http",
 		clientPodName, clientZone,
 		e.availabilityZone, e.podName,
 	)
+
+	success := true
+	if returnCode != 200 {
+		success = false
+		// do not track server egress traffic in case of zone failure simulation
+		bytesSent = 0
+	}
+	
+	// egress traffic from the server to the client
 	metrics.TrackTraffic(
-		float64(written), success, "http",
+		bytesSent, success, "http",
 		e.podName, e.availabilityZone,
 		clientZone, clientPodName,
 	)
