@@ -63,8 +63,10 @@ func (o *Optimizer) Run() {
 			if err := o.optimize(crossAZTraffic); err != nil {
 				fmt.Println("optimizer cycle failed, error: ", err)
 			}
+			fmt.Println("Optimizer cycle done, sleeping for", o.config.PollInterval)
+		} else {
+			fmt.Println("no new cross-AZ traffic detected, won't run optimize, sleeping for", o.config.PollInterval)
 		}
-		fmt.Println("Optimizer cycle done, sleeping for", o.config.PollInterval)
 		time.Sleep(o.config.PollInterval)
 	}
 }
@@ -152,11 +154,11 @@ func (o *Optimizer) analyzeTrafficMetrics() []CrossAZTraffic {
 					TargetPod: targetPod,
 				})
 			} else {
-				fmt.Printf("No new cross-AZ traffic: source_az=%s, target_az=%s, previous=%f, current=%f, src=%s, target=%s\n",
-					sourceAZ, targetAZ, previousValue, value, sourcePod, targetPod)
+				//fmt.Printf("No new cross-AZ traffic: source_az=%s, target_az=%s, previous=%f, current=%f, src=%s, target=%s\n",
+				//	sourceAZ, targetAZ, previousValue, value, sourcePod, targetPod)
 			}
 		} else {
-			fmt.Printf("Non-cross-AZ traffic: source_az=%s, target_az=%s, value=%f\n", sourceAZ, targetAZ, value)
+			//fmt.Printf("Non-cross-AZ traffic: source_az=%s, target_az=%s, value=%f\n", sourceAZ, targetAZ, value)
 		}
 	}
 
