@@ -121,9 +121,7 @@ func (o *Optimizer) analyzeTrafficMetrics() []CrossAZTraffic {
 
 func (o *Optimizer) optimize(traffic []CrossAZTraffic) error {
 	fmt.Println("Optimizing...")
-	// Enable linkerd (if needed)
 
-	// Use the streaming version of ExecuteScript to see output in real-time
 	fmt.Println("Installing Linkerd...")
 	err := o.bash.ExecuteScriptStreaming("../hack/linkerd/install.sh", nil, map[string]string{
 		"BUOYANT_LICENSE": o.buoyantLicense,
@@ -133,5 +131,33 @@ func (o *Optimizer) optimize(traffic []CrossAZTraffic) error {
 	}
 	fmt.Println("Linkerd installed")
 
+	fmt.Println("Creating pod-mutations for TSC")
+	if err := o.bash.ExecuteScriptStreaming("../hack/topologyspread/pod-mutator.sh", nil, map[string]string{
+		"CASTAI_API_URI":   "api.cast.ai",
+		"ORGANIZATION_ID":  "8c39f55e-4710-4cb7-b106-3f3300818c69",
+		"CLUSTER_ID":       "197bfadc-ca34-4c50-a23f-1236394c8558",
+		"CASTAI_API_TOKEN": "0b229ebf5acb6b972656628116531034021fdb3b3fea52f775786793abbfe3b0",
+	}); err != nil {
+		return fmt.Errorf("failed to create TSC pod-mutations, script error: %w", err)
+	}
+
+	fmt.Println("Pod-mutations for TSC created")
+
+	fmt.Println("Creating pod-mutations for HAZL")
+	if err := o.bash.ExecuteScriptStreaming("../hack/linkerd/pod-mutator.sh", nil, map[string]string{
+		"CASTAI_API_URI":   "api.cast.ai",
+		"ORGANIZATION_ID":  "8c39f55e-4710-4cb7-b106-3f3300818c69",
+		"CLUSTER_ID":       "197bfadc-ca34-4c50-a23f-1236394c8558",
+		"CASTAI_API_TOKEN": "0b229ebf5acb6b972656628116531034021fdb3b3fea52f775786793abbfe3b0",
+	}); err != nil {
+		return fmt.Errorf("failed to create HAZL pod-mutations, script error: %w", err)
+	}
+	fmt.Println("Pod-mutations for HAZL created")
+
+	fmt.Println("Installing HAZL...")
+
+	fmt.Println("Installed HAZL")
+
+	fmt.Println("Optimizing done")
 	return nil
 }

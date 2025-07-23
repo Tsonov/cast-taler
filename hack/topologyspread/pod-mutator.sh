@@ -21,10 +21,8 @@ for app_name in "${APP_NAMES[@]}"; do
        jq -r --arg name "$app_name" '.items[] | select(.name == $name) | .id')
 
   if [[ -n "$id" ]]; then
-    curl --request DELETE \
-         --url "https://${CASTAI_API_URI}/patching-engine/v1beta/organizations/${ORGANIZATION_ID}/clusters/${CLUSTER_ID}/pod-mutations/${id}" \
-         --header 'accept: application/json' \
-         --header "authorization: Bearer ${CASTAI_API_TOKEN}"
+    echo "Pod mutation for ${app_name} already exists with ID ${id}, skipping creation"
+    continue
   fi
 
   curl --request POST \
