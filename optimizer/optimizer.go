@@ -171,29 +171,29 @@ func (o *Optimizer) analyzeTrafficMetrics() []CrossAZTraffic {
 func (o *Optimizer) optimize(traffic []CrossAZTraffic) error {
 	fmt.Println("Optimizing...")
 
-	fmt.Println("Creating pod-mutations for TSC")
+	fmt.Println("Creating pod-mutations")
 	if err := o.bash.ExecuteScriptStreaming("../hack/topologyspread/pod-mutator.sh", nil, map[string]string{
 		"CASTAI_API_URI":   o.config.CastaiConfig.ApiUri,
 		"ORGANIZATION_ID":  o.config.CastaiConfig.OrganizationId,
 		"CLUSTER_ID":       o.config.CastaiConfig.ClusterId,
 		"CASTAI_API_TOKEN": o.config.CastaiConfig.ApiToken,
 	}); err != nil {
-		return fmt.Errorf("failed to create TSC pod-mutations, script error: %w", err)
+		return fmt.Errorf("failed to create pod-mutations, script error: %w", err)
 	}
 
-	fmt.Println("Pod-mutations for TSC created")
+	fmt.Println("Pod-mutations created")
 
-	fmt.Println("Creating pod-mutations for HAZL")
-	// This goes second as it will force the pod mutations to be applied AND restart so might as well.
-	if err := o.bash.ExecuteScriptStreaming("../hack/linkerd/pod-mutator.sh", nil, map[string]string{
-		"CASTAI_API_URI":   o.config.CastaiConfig.ApiUri,
-		"ORGANIZATION_ID":  o.config.CastaiConfig.OrganizationId,
-		"CLUSTER_ID":       o.config.CastaiConfig.ClusterId,
-		"CASTAI_API_TOKEN": o.config.CastaiConfig.ApiToken,
-	}); err != nil {
-		return fmt.Errorf("failed to create HAZL pod-mutations, script error: %w", err)
-	}
-	fmt.Println("Pod-mutations for HAZL created")
+	//fmt.Println("Creating pod-mutations for HAZL")
+	//// This goes second as it will force the pod mutations to be applied AND restart so might as well.
+	//if err := o.bash.ExecuteScriptStreaming("../hack/linkerd/pod-mutator.sh", nil, map[string]string{
+	//	"CASTAI_API_URI":   o.config.CastaiConfig.ApiUri,
+	//	"ORGANIZATION_ID":  o.config.CastaiConfig.OrganizationId,
+	//	"CLUSTER_ID":       o.config.CastaiConfig.ClusterId,
+	//	"CASTAI_API_TOKEN": o.config.CastaiConfig.ApiToken,
+	//}); err != nil {
+	//	return fmt.Errorf("failed to create HAZL pod-mutations, script error: %w", err)
+	//}
+	//fmt.Println("Pod-mutations for HAZL created")
 
 	fmt.Println("Installing HAZL...")
 	if err := o.bash.ExecuteScriptStreaming("../hack/linkerd/hazl-enable.sh", nil, map[string]string{
