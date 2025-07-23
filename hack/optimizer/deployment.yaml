@@ -30,6 +30,7 @@ data:
   castai-org-id: "${ORGANIZATION_ID}"
   castai-cluster-id: "${CLUSTER_ID}"
   castai-api-token: "${CASTAI_API_TOKEN}"
+  linkerd-cmd: "/usr/local/bin/linkerd"
 ---
 apiVersion: apps/v1
 kind: Deployment
@@ -61,6 +62,7 @@ spec:
         - "--castai-org-id=$(ORGANIZATION_ID)"
         - "--castai-cluster-id=$(CLUSTER_ID)"
         - "--castai-api-token=$(CASTAI_API_TOKEN)"
+        - "--linkerd-cmd=$(LINKERD_CMD)"
         env:
         - name: PROMETHEUS_URL
           valueFrom:
@@ -97,6 +99,11 @@ spec:
             configMapKeyRef:
               name: optimizer-config
               key: castai-api-token
+        - name: LINKERD_CMD
+          valueFrom:
+            configMapKeyRef:
+              name: optimizer-config
+              key: linkerd-cmd
         resources:
           limits:
             cpu: "200m"
