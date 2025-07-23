@@ -40,8 +40,6 @@ spec:
     metadata:
       labels:
         app: echo-client
-      annotations:
-        linkerd.io/inject: enabled
     spec:
       serviceAccountName: test-app
       containers:
@@ -97,8 +95,6 @@ spec:
     metadata:
       labels:
         app: echo-server
-      annotations:
-        linkerd.io/inject: enabled
     spec:
       serviceAccountName: test-app
       containers:
