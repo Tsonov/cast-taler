@@ -9,6 +9,7 @@ import (
 	"log/slog"
 	mathrand "math/rand"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/spf13/pflag"
@@ -17,7 +18,7 @@ import (
 var (
 	serverAddress = pflag.String("echo-server-address", "echo-server.taler.svc.cluster.local", "Address of echo server")
 	echoPort      = pflag.Int("echo-port", 8080, "Port of echo server")
-	maxDataSizeMB = pflag.Int("max-data-size-mb", 5, "Maximum data transfered per connection in MB")
+	maxDataSizeMB = pflag.Int("max-data-size-mb", 3, "Maximum data transfered per connection in MB")
 	minDataSizeMB = pflag.Int("min-data-size-mb", 1, "Minimum data transfered per connection in MB")
 )
 
@@ -32,6 +33,7 @@ type EchoClient struct {
 	podName          string
 	parallelRequests int
 	requestPerSecond int
+	bufPool          *sync.Pool
 }
 
 func NewEchoClient(log *slog.Logger, availabilityZone, podName string) *EchoClient {
@@ -39,6 +41,12 @@ func NewEchoClient(log *slog.Logger, availabilityZone, podName string) *EchoClie
 		log:              log,
 		availabilityZone: availabilityZone,
 		podName:          podName,
+		bufPool: &sync.Pool{
+			New: func() any {
+				log.Info("Creating new buffer pool")
+				return bytes.NewBuffer(make([]byte, 0, *maxDataSizeMB*MB))
+			},
+		},
 	}
 }
 
@@ -55,15 +63,25 @@ func (e *EchoClient) Run(ctx context.Context, requestNumberPerSecond int, parall
 
 			e.log.Info("Connecting to server.")
 			bufSize := mathrand.Intn(*maxDataSizeMB-*minDataSizeMB) + *minDataSizeMB
-			buff := make([]byte, bufSize*MB)
+			// Get buffer from pool
+			buff := e.bufPool.Get().(*bytes.Buffer)
+			// Reset and resize buffer
+			buff.Reset()
+			if buff.Cap() < bufSize*MB {
+				buff = bytes.NewBuffer(make([]byte, 0, bufSize*MB))
+			}
+			// Fill buffer with random data
+			tmp := make([]byte, bufSize*MB)
+			rand.Read(tmp)
+			buff.Write(tmp)
 
 			e.log.Info("Sending data", slog.Int("buff-size", bufSize*MB))
-			rand.Read(buff)
 
 			url := fmt.Sprintf("http://%s:%d/echo", *serverAddress, *echoPort)
-			r, err := http.NewRequest("POST", url, bytes.NewBuffer(buff))
+			r, err := http.NewRequest("POST", url, buff)
 			if err != nil {
 				e.log.Error("Failed to create POST request.", Err(err))
+				e.bufPool.Put(buff)
 				continue
 			}
 
@@ -74,12 +92,14 @@ func (e *EchoClient) Run(ctx context.Context, requestNumberPerSecond int, parall
 			resp, err := client.Do(r)
 			if err != nil {
 				e.log.Error("Error connecting to server", Err(err))
+				e.bufPool.Put(buff)
 				continue
 			}
 			defer resp.Body.Close()
 			data, err := io.ReadAll(resp.Body)
 			if err != nil {
 				e.log.Error("Error reading response", Err(err))
+				e.bufPool.Put(buff)
 				return
 			}
 
@@ -89,6 +109,9 @@ func (e *EchoClient) Run(ctx context.Context, requestNumberPerSecond int, parall
 				azLine = string(lines[0])
 			}
 			e.log.Info("Received data", slog.Int("bytes", len(data)), slog.Int("status_code", resp.StatusCode), slog.String("az", azLine))
+
+			// Return buffer to pool
+			e.bufPool.Put(buff)
 
 			if resp.StatusCode == 200 {
 				time.Sleep(time.Second / time.Duration(requestNumberPerSecond))
