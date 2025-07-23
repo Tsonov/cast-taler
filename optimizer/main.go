@@ -58,6 +58,7 @@ func main() {
 	var prometheusURL string
 	var prometheusTimeout time.Duration
 	var prometheusIsAPI bool
+	var buoyantLicense string
 
 	// Set default kubeconfig path if not specified
 	if home := homedir.HomeDir(); home != "" {
@@ -72,6 +73,9 @@ func main() {
 	pflag.StringVar(&prometheusURL, "prometheus-url", "", "URL of the Prometheus metrics endpoint or API to scrape")
 	pflag.DurationVar(&prometheusTimeout, "prometheus-timeout", 10*time.Second, "Timeout for Prometheus metrics scraping")
 	pflag.BoolVar(&prometheusIsAPI, "prometheus-is-api", false, "Set to true if prometheus-url points to a Prometheus API instance instead of a direct metrics endpoint")
+
+	// Buoyant license flag
+	pflag.StringVar(&buoyantLicense, "buoyant-license", "", "Buoyant license key required for Linkerd")
 
 	pflag.Parse()
 
@@ -102,8 +106,11 @@ func main() {
 			fmt.Printf("Connecting to Prometheus metrics endpoint at %s\n", prometheusURL)
 		}
 		scraper := NewPrometheusScraper(prometheusURL, prometheusTimeout, prometheusIsAPI)
+		executor := NewBashExecutor()
+		// Enable streaming output by default
+		executor.SetStreamOutput(true)
 
-		optimizer := NewOptimizer(scraper, 10*time.Second)
+		optimizer := NewOptimizer(scraper, 10*time.Second, executor, buoyantLicense)
 
 		// Run the optimizer (this will block indefinitely)
 		optimizer.Run()

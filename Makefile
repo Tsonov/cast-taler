@@ -5,6 +5,7 @@ ORGANIZATION_ID ?=
 CLUSTER_ID ?=
 CASTAI_API_TOKEN ?=
 CASTAI_API_URI ?= api.dev-master.cast.ai
+BUOYANT_LICENSE ?=
 
 include Makefile.vars
 
@@ -45,11 +46,11 @@ destroy:
 
 .PHONY: linkerd-install
 linkerd-install:
-	BUOYANT_LICENSE=${BUOYANT_LICENSE} ./hack/linkerd/install.sh
+	BUOYANT_LICENSE=$(BUOYANT_LICENSE) ./hack/linkerd/install.sh
 
 .PHONY: linkerd-uninstall
 linkerd-uninstall:
-	./hack/linkerd/uninstall.sh
+	BUOYANT_LICENSE=$(BUOYANT_LICENSE) ./hack/linkerd/uninstall.sh
 
 .PHONY: hazl-enable
 hazl-enable: apply-pod-mutation

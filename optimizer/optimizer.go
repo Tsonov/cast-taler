@@ -17,15 +17,19 @@ const (
 
 // Optimizer is responsible for analyzing Prometheus metrics and identifying cross-AZ traffic
 type Optimizer struct {
-	scraper      *PrometheusScraper
-	pollInterval time.Duration
+	scraper        *PrometheusScraper
+	pollInterval   time.Duration
+	bash           *BashExecutor
+	buoyantLicense string
 }
 
 // NewOptimizer creates a new instance of Optimizer
-func NewOptimizer(scraper *PrometheusScraper, pollInterval time.Duration) *Optimizer {
+func NewOptimizer(scraper *PrometheusScraper, pollInterval time.Duration, executor *BashExecutor, buoyantLicense string) *Optimizer {
 	return &Optimizer{
-		scraper:      scraper,
-		pollInterval: pollInterval,
+		scraper:        scraper,
+		pollInterval:   pollInterval,
+		bash:           executor,
+		buoyantLicense: buoyantLicense,
 	}
 }
 
@@ -37,7 +41,9 @@ func (o *Optimizer) Run() {
 		crossAZTraffic := o.analyzeTrafficMetrics()
 		if len(crossAZTraffic) > 0 {
 			fmt.Println(fmt.Sprintf("detected %d instances of cross-AZ traffic", len(crossAZTraffic)))
-			o.optimize(crossAZTraffic)
+			if err := o.optimize(crossAZTraffic); err != nil {
+				fmt.Println("optimizer cycle failed, error: ", err)
+			}
 		}
 		fmt.Println("Optimizer cycle done, sleeping for", o.pollInterval)
 		time.Sleep(o.pollInterval)
@@ -113,6 +119,19 @@ func (o *Optimizer) analyzeTrafficMetrics() []CrossAZTraffic {
 	return result
 }
 
-func (o *Optimizer) optimize(traffic []CrossAZTraffic) {
+func (o *Optimizer) optimize(traffic []CrossAZTraffic) error {
 	fmt.Println("Optimizing...")
+	// Enable linkerd (if needed)
+
+	// Use the streaming version of ExecuteScript to see output in real-time
+	fmt.Println("Installing Linkerd...")
+	err := o.bash.ExecuteScriptStreaming("../hack/linkerd/install.sh", nil, map[string]string{
+		"BUOYANT_LICENSE": o.buoyantLicense,
+	})
+	if err != nil {
+		return fmt.Errorf("failed to install linkerd, script error: %w", err)
+	}
+	fmt.Println("Linkerd installed")
+
+	return nil
 }
