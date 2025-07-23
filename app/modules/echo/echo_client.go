@@ -49,7 +49,7 @@ func (e *EchoClient) Run(ctx context.Context, requestNumberPerSecond int) error 
 		}
 
 		e.log.Info("Connecting to server.")
-		bufSize := mathrand.Intn(*maxDataSizeMB) + *minDataSizeMB
+		bufSize := mathrand.Intn(*maxDataSizeMB-*minDataSizeMB) + *minDataSizeMB
 		buff := make([]byte, bufSize*MB)
 
 		e.log.Info("Sending data", slog.Int("buff-size", bufSize*MB))
