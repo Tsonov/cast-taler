@@ -14,6 +14,3 @@ fi
 
 echo "🔄 Enabling HAZL via linkerd upgrade…"
 ${LINKERD_CMD} upgrade --set "destinationController.additionalArgs[0]=-ext-endpoint-zone-weights" | kubectl apply -f -
-
-# Sanity check
-${LINKERD_CMD} check --wait 0
