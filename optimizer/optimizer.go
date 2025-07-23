@@ -21,15 +21,18 @@ type Optimizer struct {
 	pollInterval   time.Duration
 	bash           *BashExecutor
 	buoyantLicense string
+	// Store previous counter values to detect new traffic
+	previousCounters map[string]float64
 }
 
 // NewOptimizer creates a new instance of Optimizer
 func NewOptimizer(scraper *PrometheusScraper, pollInterval time.Duration, executor *BashExecutor, buoyantLicense string) *Optimizer {
 	return &Optimizer{
-		scraper:        scraper,
-		pollInterval:   pollInterval,
-		bash:           executor,
-		buoyantLicense: buoyantLicense,
+		scraper:          scraper,
+		pollInterval:     pollInterval,
+		bash:             executor,
+		buoyantLicense:   buoyantLicense,
+		previousCounters: make(map[string]float64),
 	}
 }
 
@@ -74,6 +77,9 @@ func (o *Optimizer) analyzeTrafficMetrics() []CrossAZTraffic {
 
 	fmt.Printf("Analyzing %d metrics in family %s\n", len(family.GetMetric()), TrafficTotalMetricName)
 
+	// Create a map to store current counter values
+	currentCounters := make(map[string]float64)
+
 	// Iterate through metrics in the family
 	for _, metric := range family.GetMetric() {
 		var sourceAZ, targetAZ, sourcePod, targetPod string
@@ -103,18 +109,43 @@ func (o *Optimizer) analyzeTrafficMetrics() []CrossAZTraffic {
 			continue
 		}
 
-		// Check if this is cross-AZ traffic with positive value
-		if sourceAZ != targetAZ && value > 0 {
-			fmt.Printf("Cross-AZ traffic detected: source_az=%s, target_az=%s, value=%f\n",
-				sourceAZ, targetAZ, value)
-			result = append(result, CrossAZTraffic{
-				SourcePod: sourcePod,
-				TargetPod: targetPod,
-			})
+		// Create a unique key for this metric
+		metricKey := fmt.Sprintf("%s:%s:%s:%s", sourceAZ, targetAZ, sourcePod, targetPod)
+
+		// Store the current value
+		currentCounters[metricKey] = value
+
+		// Check if this is cross-AZ traffic
+		if sourceAZ != targetAZ {
+			// Get the previous value (if any)
+			previousValue, exists := o.previousCounters[metricKey]
+			if !exists {
+				fmt.Println("First time we see this metric, setting previous value to 0")
+				previousValue = 0
+			}
+
+			// If this is the first time we see this metric or if there's new traffic
+			if value > previousValue {
+				delta := value
+				delta = value - previousValue
+
+				fmt.Printf("NEW Cross-AZ traffic detected: source_az=%s, target_az=%s,  src=%s, target=%s, previous=%f, current=%f, delta=%f\n",
+					sourceAZ, targetAZ, sourcePod, targetPod, previousValue, value, delta)
+				result = append(result, CrossAZTraffic{
+					SourcePod: sourcePod,
+					TargetPod: targetPod,
+				})
+			} else {
+				fmt.Printf("No new cross-AZ traffic: source_az=%s, target_az=%s, previous=%f, current=%f, src=%s, target=%s\n",
+					sourceAZ, targetAZ, previousValue, value, sourcePod, targetPod)
+			}
 		} else {
-			fmt.Printf("Non-cross-AZ traffic detected: source_az=%s, target_az=%s, value=%f\n", sourceAZ, targetAZ, value)
+			fmt.Printf("Non-cross-AZ traffic: source_az=%s, target_az=%s, value=%f\n", sourceAZ, targetAZ, value)
 		}
 	}
+
+	// Update the previous counters for the next cycle
+	o.previousCounters = currentCounters
 
 	return result
 }
