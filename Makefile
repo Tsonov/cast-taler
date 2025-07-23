@@ -14,6 +14,17 @@ build-push:
 	docker build -t $(REPOSITORY)/$(APP):$(TAG) .
 	docker push $(REPOSITORY)/$(APP):$(TAG)
 
+.PHONY: build-push-optimizer
+build-push-optimizer:
+	docker build -t $(REPOSITORY):optimizer -f optimizer.Dockerfile .
+	docker push $(REPOSITORY):optimizer
+
+.PHONY: deploy-optimizer
+deploy-optimizer: create-namespace build-push-optimizer
+	@echo "→ Deploying optimizer with REPOSITORY=$(REPOSITORY)"
+	@export OPTIMIZER_IMAGE=$(REPOSITORY):optimizer && \
+	cat ./hack/optimizer/deployment.yaml | envsubst '$$OPTIMIZER_IMAGE' | kubectl apply -f -
+
 .PHONY: create-namespace
 create-namespace:
 	kubectl create namespace taler --dry-run=client -o yaml | kubectl apply -f -
