@@ -1,3 +1,4 @@
+CASTAI_API_URI=api.dev-master.cast.ai
 ORGANIZATION_ID=token
 CLUSTER_ID=cluster-id
 CASTAI_API_TOKEN=org-id

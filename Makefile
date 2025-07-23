@@ -4,6 +4,7 @@ TAG ?= latest
 ORGANIZATION_ID ?=
 CLUSTER_ID ?=
 CASTAI_API_TOKEN ?=
+CASTAI_API_URI ?= api.dev-master.cast.ai
 
 include Makefile.vars
 
@@ -60,5 +61,7 @@ hazl-disable:
 
 .PHONY: hazl-disable
 hazl-disable:
+
+.PHONY: apply-pod-mutation
 apply-pod-mutation:
-	ORGANIZATION_ID=$(ORGANIZATION_ID) CLUSTER_ID=${CLUSTER_ID} CASTAI_API_TOKEN=${CASTAI_API_TOKEN} ./hack/linkerd/pod-mutator.sh
+	ORGANIZATION_ID=$(ORGANIZATION_ID) CLUSTER_ID=${CLUSTER_ID} CASTAI_API_TOKEN=${CASTAI_API_TOKEN} CASTAI_API_URI=${CASTAI_API_URI} ./hack/linkerd/pod-mutator.sh
