@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"os"
 	"path/filepath"
+	"time"
 
 	"github.com/spf13/pflag"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
@@ -14,22 +15,7 @@ import (
 	"k8s.io/client-go/util/homedir"
 )
 
-func main() {
-	// Define command-line flags
-	var kubeconfig string
-	var kubecontext string
-
-	// Set default kubeconfig path if not specified
-	if home := homedir.HomeDir(); home != "" {
-		pflag.StringVar(&kubeconfig, "kubeconfig", filepath.Join(home, ".kube", "config"),
-			"(optional) absolute path to the kubeconfig file")
-	} else {
-		pflag.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
-	}
-	pflag.StringVar(&kubecontext, "kubecontext", "", "name of the kubeconfig context to use")
-	pflag.Parse()
-
-	// Create the Kubernetes client configuration
+func initKubeClient(kubeconfig, kubecontext string) (*kubernetes.Clientset, error) {
 	var config *rest.Config
 	var err error
 
@@ -46,22 +32,51 @@ func main() {
 		clientConfig := clientcmd.NewNonInteractiveDeferredLoadingClientConfig(loadingRules, configOverrides)
 		config, err = clientConfig.ClientConfig()
 		if err != nil {
-			fmt.Printf("Error creating Kubernetes client config from kubeconfig: %v\n", err)
-			os.Exit(1)
+			return nil, fmt.Errorf("error creating Kubernetes client config from kubeconfig: %v", err)
 		}
 	} else {
 		// Use in-cluster configuration
 		config, err = rest.InClusterConfig()
 		if err != nil {
-			fmt.Printf("Error creating in-cluster config: %v\n", err)
-			os.Exit(1)
+			return nil, fmt.Errorf("error creating in-cluster config: %v", err)
 		}
 	}
 
 	// Create the clientset
 	clientset, err := kubernetes.NewForConfig(config)
 	if err != nil {
-		fmt.Printf("Error creating Kubernetes client: %v\n", err)
+		return nil, fmt.Errorf("error creating Kubernetes client: %v", err)
+	}
+
+	return clientset, nil
+}
+
+func main() {
+	// Define command-line flags
+	var kubeconfig string
+	var kubecontext string
+	var prometheusURL string
+	var prometheusTimeout time.Duration
+
+	// Set default kubeconfig path if not specified
+	if home := homedir.HomeDir(); home != "" {
+		pflag.StringVar(&kubeconfig, "kubeconfig", filepath.Join(home, ".kube", "config"),
+			"(optional) absolute path to the kubeconfig file")
+	} else {
+		pflag.StringVar(&kubeconfig, "kubeconfig", "", "absolute path to the kubeconfig file")
+	}
+	pflag.StringVar(&kubecontext, "kubecontext", "", "name of the kubeconfig context to use")
+
+	// Prometheus scraper flags
+	pflag.StringVar(&prometheusURL, "prometheus-url", "", "URL of the Prometheus metrics endpoint to scrape")
+	pflag.DurationVar(&prometheusTimeout, "prometheus-timeout", 10*time.Second, "Timeout for Prometheus metrics scraping")
+
+	pflag.Parse()
+
+	// Initialize Kubernetes client
+	clientset, err := initKubeClient(kubeconfig, kubecontext)
+	if err != nil {
+		fmt.Printf("Error initializing Kubernetes client: %v\n", err)
 		os.Exit(1)
 	}
 
@@ -76,4 +91,14 @@ func main() {
 
 	// Your optimizer logic goes here
 	fmt.Println("Optimizer started")
+
+	// If Prometheus URL is provided, scrape and display metrics
+	if prometheusURL != "" {
+		fmt.Printf("Scraping Prometheus metrics from %s\n", prometheusURL)
+		scraper := NewPrometheusScraper(prometheusURL, prometheusTimeout)
+		if err := scraper.DisplayMetrics(); err != nil {
+			fmt.Printf("Error scraping Prometheus metrics: %v\n", err)
+			os.Exit(1)
+		}
+	}
 }
