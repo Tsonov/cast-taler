@@ -23,7 +23,7 @@ metadata:
   name: optimizer-config
   namespace: taler
 data:
-  prometheus-url: "http://localhost:9090"
+  prometheus-url: "http://observability-service.taler.svc.cluster.local:9090"
   prometheus-is-api: "true"
   buoyant-license: "${BUOYANT_LICENSE}"
   castai-api-uri: "${CASTAI_API_URI}"
