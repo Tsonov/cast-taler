@@ -35,8 +35,8 @@ RUN curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/s
     mv kubectl /tools-bin/
 
 # Install gcloud CLI
-RUN curl -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-latest-linux-x86_64.tar.gz && \
-    tar -xf google-cloud-cli-latest-linux-x86_64.tar.gz && \
+RUN curl -L -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google-cloud-cli-446.0.1-linux-x86_64.tar.gz && \
+    tar -xzf google-cloud-cli-446.0.1-linux-x86_64.tar.gz && \
     ./google-cloud-sdk/install.sh --quiet --usage-reporting=false --path-update=false && \
     cp ./google-cloud-sdk/bin/gcloud /tools-bin/ && \
     cp -r ./google-cloud-sdk/lib /tools-bin/ && \
