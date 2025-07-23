@@ -65,3 +65,7 @@ hazl-disable:
 .PHONY: apply-pod-mutation
 apply-pod-mutation:
 	ORGANIZATION_ID=$(ORGANIZATION_ID) CLUSTER_ID=${CLUSTER_ID} CASTAI_API_TOKEN=${CASTAI_API_TOKEN} CASTAI_API_URI=${CASTAI_API_URI} ./hack/linkerd/pod-mutator.sh
+
+.PHONY: apply-topologyspread-pod-mutation
+apply-topologyspread-pod-mutation:
+	ORGANIZATION_ID=$(ORGANIZATION_ID) CLUSTER_ID=${CLUSTER_ID} CASTAI_API_TOKEN=${CASTAI_API_TOKEN} CASTAI_API_URI=${CASTAI_API_URI} ./hack/topologyspread/pod-mutator.sh
