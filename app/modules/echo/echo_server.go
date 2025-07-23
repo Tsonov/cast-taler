@@ -113,7 +113,7 @@ func (e *EchoServer) handleConnection(writer http.ResponseWriter, request *http.
 		logger.Error("Error reading from connection", Err(err))
 	}
 
-	bytesSent := float64(written)
+	bytesSent := float64(written) * 1000 // increase traffic we report to show nicer numbers
 	
 	// egress traffic from the client to the server
 	metrics.TrackTraffic(
