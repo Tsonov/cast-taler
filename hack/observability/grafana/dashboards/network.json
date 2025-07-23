@@ -22,10 +22,24 @@
   "links": [],
   "panels": [
     {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 0
+      },
+      "id": 9,
+      "panels": [],
+      "title": "Traffic",
+      "type": "row"
+    },
+    {
       "datasource": {
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -40,8 +54,8 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 24,
-            "gradientMode": "hue",
+            "fillOpacity": 12,
+            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
@@ -50,7 +64,7 @@
             "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
-            "pointSize": 4,
+            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
@@ -64,6 +78,7 @@
               "mode": "off"
             }
           },
+          "decimals": 1,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -73,23 +88,23 @@
               }
             ]
           },
-          "unit": "bytes"
+          "unit": "decbytes"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 12,
         "x": 0,
-        "y": 0
+        "y": 1
       },
-      "id": 5,
+      "id": 12,
       "options": {
         "legend": {
           "calcs": [],
           "displayMode": "list",
           "placement": "bottom",
-          "showLegend": false
+          "showLegend": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -106,16 +121,40 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "# Total traffic here includes both ingress and egress so we need to divide by 2 to get actual cluster traffic number\nsum(increase(traffic_total{}[$__interval])) / 2 ",
-          "hide": false,
+          "expr": "# Create same-zone indicator and use it to filter (divide by 2 due to egress/ingress metrics)\nsum(\n  increase(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}[$__interval]) * on(source_az, target_az) group_left() \n  (\n    label_replace(\n      group by (source_az) (traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}), \n      \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n    )\n  )\n) / 2",
           "instant": false,
-          "interval": "",
-          "legendFormat": "Total traffic",
+          "legendFormat": "Same AZ Traffic",
           "range": true,
           "refId": "A"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "# All traffic minus same zone\nsum(increase(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}[$__interval])) / 2 - sum(\n  increase(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}[$__interval]) * on(source_az, target_az) group_left() \n  (\n    label_replace(\n      group by (source_az) (traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}), \n      \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n    )\n  )\n) / 2",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Cross AZ Traffic",
+          "range": true,
+          "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(increase(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}[$__interval])) / 2",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Total traffic",
+          "range": true,
+          "refId": "C"
         }
       ],
-      "title": "Cluster traffic",
+      "title": "Cross AZ Analysis",
       "type": "timeseries"
     },
     {
@@ -123,6 +162,7 @@
         "type": "prometheus",
         "uid": "PBFA97CFB590B2093"
       },
+      "description": "",
       "fieldConfig": {
         "defaults": {
           "color": {
@@ -137,8 +177,8 @@
             "barAlignment": 0,
             "barWidthFactor": 0.6,
             "drawStyle": "line",
-            "fillOpacity": 24,
-            "gradientMode": "hue",
+            "fillOpacity": 12,
+            "gradientMode": "none",
             "hideFrom": {
               "legend": false,
               "tooltip": false,
@@ -147,7 +187,7 @@
             "insertNulls": false,
             "lineInterpolation": "linear",
             "lineWidth": 1,
-            "pointSize": 4,
+            "pointSize": 5,
             "scaleDistribution": {
               "type": "linear"
             },
@@ -161,6 +201,7 @@
               "mode": "off"
             }
           },
+          "decimals": 4,
           "mappings": [],
           "thresholds": {
             "mode": "absolute",
@@ -170,23 +211,25 @@
               }
             ]
           },
-          "unit": "binBps"
+          "unit": "currencyUSD"
         },
         "overrides": []
       },
       "gridPos": {
-        "h": 7,
+        "h": 8,
         "w": 12,
         "x": 12,
-        "y": 0
+        "y": 1
       },
-      "id": 6,
+      "id": 3,
       "options": {
         "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": false
+          "calcs": [
+            "sum"
+          ],
+          "displayMode": "table",
+          "placement": "right",
+          "showLegend": true
         },
         "tooltip": {
           "hideZeros": false,
@@ -203,15 +246,15 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "# Total traffic here includes both ingress and egress so we need to divide by 2 to get actual cluster traffic number\nsum(rate(traffic_total{}[$__rate_interval])) / 2",
+          "expr": "# All traffic minus same zone\n(sum(increase(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}[$__interval])) / 2 - sum(\n  increase(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}[$__interval]) * on(source_az, target_az) group_left() \n  (\n    label_replace(\n      group by (source_az) (traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}), \n      \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n    )\n  )\n) / 2 ) / 1024.0/1024.0/1024.0 * 0.01",
           "hide": false,
           "instant": false,
-          "legendFormat": "Bandwidth",
+          "legendFormat": "Cross AZ Cost",
           "range": true,
-          "refId": "A"
+          "refId": "B"
         }
       ],
-      "title": "Cluster bandwidth",
+      "title": "Traffic cost",
       "type": "timeseries"
     },
     {
@@ -276,7 +319,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 7
+        "y": 9
       },
       "id": 4,
       "options": {
@@ -301,7 +344,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "# Combine same and cross zone communications (divide by 2 due to egress/ingress metrics)\n(\n  label_replace(\n    sum by (source_az, target_az) (\n      increase(traffic_total{source_az!=\"\", target_az!=\"\"}[$__interval]) * on(source_az, target_az) group_left() \n      (\n        label_replace(\n          group by (source_az) (traffic_total), \n          \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n        )\n      )\n    ),\n    \"zone_type\", \"same_zone\", \"\", \"\"\n  ) / 2\n  or\n  label_replace(\n    sum by (source_az, target_az) (increase(traffic_total{source_az!=\"\", target_az!=\"\"}[$__interval]))\n    unless on(source_az, target_az) \n    (\n      label_replace(\n        group by (source_az) (traffic_total), \n        \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n      )\n    ),\n    \"zone_type\", \"cross_zone\", \"\", \"\"\n  )\n) / 2",
+          "expr": "# Combine same and cross zone communications (divide by 2 due to egress/ingress metrics)\n(\n  label_replace(\n    sum by (source_az, target_az) (\n      increase(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}[$__interval]) * on(source_az, target_az) group_left() \n      (\n        label_replace(\n          group by (source_az) (traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}), \n          \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n        )\n      )\n    ),\n    \"zone_type\", \"same_zone\", \"\", \"\"\n  ) / 2\n  or\n  label_replace(\n    sum by (source_az, target_az) (increase(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}[$__interval]))\n    unless on(source_az, target_az) \n    (\n      label_replace(\n        group by (source_az) (traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}), \n        \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n      )\n    ),\n    \"zone_type\", \"cross_zone\", \"\", \"\"\n  )\n) / 2",
           "instant": false,
           "legendFormat": "{{source_az}} -> {{target_az}}",
           "range": true,
@@ -365,7 +408,7 @@
               }
             ]
           },
-          "unit": "binBps"
+          "unit": "none"
         },
         "overrides": []
       },
@@ -373,9 +416,9 @@
         "h": 8,
         "w": 12,
         "x": 12,
-        "y": 7
+        "y": 9
       },
-      "id": 7,
+      "id": 13,
       "options": {
         "legend": {
           "calcs": [],
@@ -398,15 +441,28 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "# Combine same and cross zone communications (divide by 2 due to egress/ingress metrics)\n(\n  label_replace(\n    sum by (source_az, target_az) (\n      rate(traffic_total{source_az!=\"\", target_az!=\"\"}[$__rate_interval]) * on(source_az, target_az) group_left() \n      (\n        label_replace(\n          group by (source_az) (traffic_total), \n          \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n        )\n      )\n    ),\n    \"zone_type\", \"same_zone\", \"\", \"\"\n  ) / 2\n  or\n  label_replace(\n    sum by (source_az, target_az) (rate(traffic_total{source_az!=\"\", target_az!=\"\"}[$__rate_interval]))\n    unless on(source_az, target_az) \n    (\n      label_replace(\n        group by (source_az) (traffic_total), \n        \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n      )\n    ),\n    \"zone_type\", \"cross_zone\", \"\", \"\"\n  )\n) / 2",
+          "expr": "# Combine same and cross zone communications (divide by 2 due to egress/ingress metrics)\n(\n  label_replace(\n    sum by (source_az, target_az) (\n      count_over_time(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\", success=\"false\"}[$__interval]) * on(source_az, target_az) group_left() \n      (\n        label_replace(\n          group by (source_az) (traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\", success=\"false\"}), \n          \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n        )\n      )\n    ),\n    \"zone_type\", \"same_zone\", \"\", \"\"\n  ) / 2\n  or\n  label_replace(\n    sum by (source_az, target_az) (count_over_time(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\", success=\"false\"}[$__interval]))\n    unless on(source_az, target_az) \n    (\n      label_replace(\n        group by (source_az) (traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\", success=\"false\"}), \n        \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n      )\n    ),\n    \"zone_type\", \"cross_zone\", \"\", \"\"\n  )\n) / 2",
           "instant": false,
           "legendFormat": "{{source_az}} -> {{target_az}}",
           "range": true,
           "refId": "A"
         }
       ],
-      "title": "Bandwidth across AZs",
+      "title": "AZs failures",
       "type": "timeseries"
+    },
+    {
+      "collapsed": false,
+      "gridPos": {
+        "h": 1,
+        "w": 24,
+        "x": 0,
+        "y": 17
+      },
+      "id": 10,
+      "panels": [],
+      "title": "Bandwidth",
+      "type": "row"
     },
     {
       "datasource": {
@@ -462,7 +518,7 @@
               }
             ]
           },
-          "unit": "decbytes"
+          "unit": "binBps"
         },
         "overrides": []
       },
@@ -470,117 +526,7 @@
         "h": 8,
         "w": 12,
         "x": 0,
-        "y": 15
-      },
-      "id": 3,
-      "options": {
-        "legend": {
-          "calcs": [],
-          "displayMode": "list",
-          "placement": "bottom",
-          "showLegend": true
-        },
-        "tooltip": {
-          "hideZeros": false,
-          "maxHeight": 600,
-          "mode": "single",
-          "sort": "none"
-        }
-      },
-      "pluginVersion": "12.0.2",
-      "targets": [
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "# Create same-zone indicator and use it to filter (divide by 2 due to egress/ingress metrics)\nsum(\n  increase(traffic_total{}[$__interval]) * on(source_az, target_az) group_left() \n  (\n    label_replace(\n      group by (source_az) (traffic_total), \n      \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n    )\n  )\n) / 2",
-          "instant": false,
-          "legendFormat": "Same AZ Traffic",
-          "range": true,
-          "refId": "A"
-        },
-        {
-          "datasource": {
-            "type": "prometheus",
-            "uid": "prometheus"
-          },
-          "editorMode": "code",
-          "expr": "# All traffic minus same zone\nsum(increase(traffic_total[$__interval])) / 2 - sum(\n  increase(traffic_total[$__interval]) * on(source_az, target_az) group_left() \n  (\n    label_replace(\n      group by (source_az) (traffic_total), \n      \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n    )\n  )\n) / 2",
-          "hide": false,
-          "instant": false,
-          "legendFormat": "Cross AZ Traffic",
-          "range": true,
-          "refId": "B"
-        }
-      ],
-      "title": "Cross AZ Analysis",
-      "type": "timeseries"
-    },
-    {
-      "datasource": {
-        "type": "prometheus",
-        "uid": "PBFA97CFB590B2093"
-      },
-      "description": "",
-      "fieldConfig": {
-        "defaults": {
-          "color": {
-            "mode": "palette-classic"
-          },
-          "custom": {
-            "axisBorderShow": false,
-            "axisCenteredZero": false,
-            "axisColorMode": "text",
-            "axisLabel": "",
-            "axisPlacement": "auto",
-            "barAlignment": 0,
-            "barWidthFactor": 0.6,
-            "drawStyle": "line",
-            "fillOpacity": 12,
-            "gradientMode": "none",
-            "hideFrom": {
-              "legend": false,
-              "tooltip": false,
-              "viz": false
-            },
-            "insertNulls": false,
-            "lineInterpolation": "linear",
-            "lineWidth": 1,
-            "pointSize": 5,
-            "scaleDistribution": {
-              "type": "linear"
-            },
-            "showPoints": "auto",
-            "spanNulls": false,
-            "stacking": {
-              "group": "A",
-              "mode": "none"
-            },
-            "thresholdsStyle": {
-              "mode": "off"
-            }
-          },
-          "decimals": 1,
-          "mappings": [],
-          "thresholds": {
-            "mode": "absolute",
-            "steps": [
-              {
-                "color": "green"
-              }
-            ]
-          },
-          "unit": "binBps"
-        },
-        "overrides": []
-      },
-      "gridPos": {
-        "h": 8,
-        "w": 12,
-        "x": 12,
-        "y": 15
+        "y": 18
       },
       "id": 8,
       "options": {
@@ -605,7 +551,7 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "# Create same-zone indicator and use it to filter (divide by 2 due to egress/ingress metrics)\nsum(\n  rate(traffic_total{}[$__rate_interval]) * on(source_az, target_az) group_left() \n  (\n    label_replace(\n      group by (source_az) (traffic_total), \n      \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n    )\n  )\n) / 2",
+          "expr": "# Create same-zone indicator and use it to filter (divide by 2 due to egress/ingress metrics)\nsum(\n  rate(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}[$__rate_interval]) * on(source_az, target_az) group_left() \n  (\n    label_replace(\n      group by (source_az) (traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}), \n      \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n    )\n  )\n) / 2",
           "instant": false,
           "legendFormat": "Same AZ Traffic",
           "range": true,
@@ -617,15 +563,125 @@
             "uid": "prometheus"
           },
           "editorMode": "code",
-          "expr": "# All traffic minus same zone\nsum(rate(traffic_total[$__rate_interval])) / 2 - sum(\n  rate(traffic_total[$__rate_interval]) * on(source_az, target_az) group_left() \n  (\n    label_replace(\n      group by (source_az) (traffic_total), \n      \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n    )\n  )\n) / 2",
+          "expr": "# All traffic minus same zone\nsum(rate(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}[$__rate_interval])) / 2 - sum(\n  rate(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}[$__rate_interval]) * on(source_az, target_az) group_left() \n  (\n    label_replace(\n      group by (source_az) (traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}), \n      \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n    )\n  )\n) / 2",
           "hide": false,
           "instant": false,
           "legendFormat": "Cross AZ Traffic",
           "range": true,
           "refId": "B"
+        },
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "PBFA97CFB590B2093"
+          },
+          "editorMode": "code",
+          "expr": "sum(rate(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}[$__rate_interval])) / 2",
+          "hide": false,
+          "instant": false,
+          "legendFormat": "Total traffic",
+          "range": true,
+          "refId": "C"
         }
       ],
       "title": "Bandwidth AZ Analysis",
+      "type": "timeseries"
+    },
+    {
+      "datasource": {
+        "type": "prometheus",
+        "uid": "PBFA97CFB590B2093"
+      },
+      "description": "",
+      "fieldConfig": {
+        "defaults": {
+          "color": {
+            "mode": "palette-classic"
+          },
+          "custom": {
+            "axisBorderShow": false,
+            "axisCenteredZero": false,
+            "axisColorMode": "text",
+            "axisLabel": "",
+            "axisPlacement": "auto",
+            "barAlignment": 0,
+            "barWidthFactor": 0.6,
+            "drawStyle": "line",
+            "fillOpacity": 12,
+            "gradientMode": "none",
+            "hideFrom": {
+              "legend": false,
+              "tooltip": false,
+              "viz": false
+            },
+            "insertNulls": false,
+            "lineInterpolation": "linear",
+            "lineWidth": 1,
+            "pointSize": 5,
+            "scaleDistribution": {
+              "type": "linear"
+            },
+            "showPoints": "auto",
+            "spanNulls": false,
+            "stacking": {
+              "group": "A",
+              "mode": "none"
+            },
+            "thresholdsStyle": {
+              "mode": "off"
+            }
+          },
+          "decimals": 1,
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {
+                "color": "green"
+              }
+            ]
+          },
+          "unit": "binBps"
+        },
+        "overrides": []
+      },
+      "gridPos": {
+        "h": 8,
+        "w": 12,
+        "x": 12,
+        "y": 18
+      },
+      "id": 7,
+      "options": {
+        "legend": {
+          "calcs": [],
+          "displayMode": "list",
+          "placement": "bottom",
+          "showLegend": true
+        },
+        "tooltip": {
+          "hideZeros": false,
+          "maxHeight": 600,
+          "mode": "single",
+          "sort": "none"
+        }
+      },
+      "pluginVersion": "12.0.2",
+      "targets": [
+        {
+          "datasource": {
+            "type": "prometheus",
+            "uid": "prometheus"
+          },
+          "editorMode": "code",
+          "expr": "# Combine same and cross zone communications (divide by 2 due to egress/ingress metrics)\n(\n  label_replace(\n    sum by (source_az, target_az) (\n      rate(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}[$__rate_interval]) * on(source_az, target_az) group_left() \n      (\n        label_replace(\n          group by (source_az) (traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}), \n          \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n        )\n      )\n    ),\n    \"zone_type\", \"same_zone\", \"\", \"\"\n  ) / 2\n  or\n  label_replace(\n    sum by (source_az, target_az) (rate(traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}[$__rate_interval]))\n    unless on(source_az, target_az) \n    (\n      label_replace(\n        group by (source_az) (traffic_total{source_az=~\"$source_az\", target_az=~\"$target_az\"}), \n        \"target_az\", \"$1\", \"source_az\", \"(.*)\"\n      )\n    ),\n    \"zone_type\", \"cross_zone\", \"\", \"\"\n  )\n) / 2",
+          "instant": false,
+          "legendFormat": "{{source_az}} -> {{target_az}}",
+          "range": true,
+          "refId": "A"
+        }
+      ],
+      "title": "Bandwidth across AZs",
       "type": "timeseries"
     }
   ],
@@ -634,7 +690,68 @@
   "schemaVersion": 41,
   "tags": [],
   "templating": {
-    "list": []
+    "list": [
+      {
+        "allowCustomValue": true,
+        "current": {
+          "text": [
+            "us-central1-b",
+            "us-central1-c",
+            "us-central1-f"
+          ],
+          "value": [
+            "us-central1-b",
+            "us-central1-c",
+            "us-central1-f"
+          ]
+        },
+        "definition": "label_values(traffic_total,source_az)",
+        "description": "",
+        "includeAll": true,
+        "label": "Source AZ",
+        "multi": true,
+        "name": "source_az",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(traffic_total,source_az)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      },
+      {
+        "allowCustomValue": true,
+        "current": {
+          "text": [
+            "us-central1-b",
+            "us-central1-c",
+            "us-central1-f"
+          ],
+          "value": [
+            "us-central1-b",
+            "us-central1-c",
+            "us-central1-f"
+          ]
+        },
+        "definition": "label_values(traffic_total,target_az)",
+        "description": "",
+        "includeAll": true,
+        "label": "Target AZ",
+        "multi": true,
+        "name": "target_az",
+        "options": [],
+        "query": {
+          "qryType": 1,
+          "query": "label_values(traffic_total,target_az)",
+          "refId": "PrometheusVariableQueryEditor-VariableQuery"
+        },
+        "refresh": 1,
+        "regex": "",
+        "type": "query"
+      }
+    ]
   },
   "time": {
     "from": "now-5m",
