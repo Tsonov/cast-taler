@@ -42,10 +42,10 @@ RUN curl -L -O https://dl.google.com/dl/cloudsdk/channels/rapid/downloads/google
     cp -r ./google-cloud-sdk/lib /tools-bin/ && \
     cp -r ./google-cloud-sdk/platform /tools-bin/
 
-FROM debian:bullseye-slim
+FROM --platform=linux/amd64 debian:bullseye-slim
 
-# Install Python for gcloud CLI
-RUN apt-get update && apt-get install -y python3 && apt-get clean
+# Install Python for gcloud CLI and bash for script execution
+RUN apt-get update && apt-get install -y python3 bash && apt-get clean
 
 # Create nonroot user and group
 RUN groupadd -r nonroot && useradd -r -g nonroot nonroot
