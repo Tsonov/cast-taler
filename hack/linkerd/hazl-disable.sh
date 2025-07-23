@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
 
 set -euo pipefail
+LINKERD_CMD=${LINKERD_CMD:-linkerd}
 
-linkerd upgrade | kubectl apply -f -
+${LINKERD_CMD} upgrade | kubectl apply -f -
