@@ -57,6 +57,7 @@ func main() {
 	var kubecontext string
 	var prometheusURL string
 	var prometheusTimeout time.Duration
+	var prometheusIsAPI bool
 
 	// Set default kubeconfig path if not specified
 	if home := homedir.HomeDir(); home != "" {
@@ -68,8 +69,9 @@ func main() {
 	pflag.StringVar(&kubecontext, "kubecontext", "", "name of the kubeconfig context to use")
 
 	// Prometheus scraper flags
-	pflag.StringVar(&prometheusURL, "prometheus-url", "", "URL of the Prometheus metrics endpoint to scrape")
+	pflag.StringVar(&prometheusURL, "prometheus-url", "", "URL of the Prometheus metrics endpoint or API to scrape")
 	pflag.DurationVar(&prometheusTimeout, "prometheus-timeout", 10*time.Second, "Timeout for Prometheus metrics scraping")
+	pflag.BoolVar(&prometheusIsAPI, "prometheus-is-api", false, "Set to true if prometheus-url points to a Prometheus API instance instead of a direct metrics endpoint")
 
 	pflag.Parse()
 
@@ -94,8 +96,12 @@ func main() {
 
 	// If Prometheus URL is provided, create and run the optimizer
 	if prometheusURL != "" {
-		fmt.Printf("Connecting to Prometheus at %s\n", prometheusURL)
-		scraper := NewPrometheusScraper(prometheusURL, prometheusTimeout)
+		if prometheusIsAPI {
+			fmt.Printf("Connecting to Prometheus API at %s\n", prometheusURL)
+		} else {
+			fmt.Printf("Connecting to Prometheus metrics endpoint at %s\n", prometheusURL)
+		}
+		scraper := NewPrometheusScraper(prometheusURL, prometheusTimeout, prometheusIsAPI)
 
 		optimizer := NewOptimizer(scraper, 10*time.Second)
 
